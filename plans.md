@@ -764,7 +764,7 @@ DeepLearning/
 
 ### 14.2 训练代码
 
-- [ ] T2.1 实现 `src/utils.py` + `src/data.py`（数据集、变换、DataLoader）
+- [x] T2.1 实现 `src/utils.py` + `src/data.py`（数据集、变换、DataLoader）— 2026-10-19
 - [x] T2.2 实现 `src/models.py`（A/B/C/D/E，MSFF + CBAM）— 2026-10-19
 - [ ] T2.3 实现 `src/train.py`（训练循环、日志、checkpoint、测试指标）
 - [ ] T2.4 独立代码审查通过

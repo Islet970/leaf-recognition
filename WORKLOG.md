@@ -88,3 +88,20 @@
 - 验证结论: 通过（参数与计划表一致；代码审查 T2.4 待做）
 - 提交: `feat(models): 实现 A/B/C/D/E 五模型与 Grad-CAM 层`
 - 遗留问题 / 下一步: T2.4 独立代码审查；T2.3 训练脚本
+
+---
+
+## [2026-10-19 13:50] T2.1 实现数据管道
+
+- 执行代理: 子代理（编码，opus / medium）+ 主代理复核
+- 目标: 数据集、训练/评测变换、DataLoader、通用工具
+- 改动:
+  - 新增 `src/utils.py`：`set_seed`、`get_logger`、`AverageMeter`、`save/load_checkpoint`、`macro_f1`、`count_parameters`
+  - 新增 `src/data.py`：`LeafDataset`、`build_train_transform`、`build_eval_transform`、`build_dataloaders`
+- 命令与结果:
+  - 子代理临时目录自测：batch `(4,3,128,128)`、train/eval transform 均 `(3,128,128)`、缺列报错、缓存分支正常
+  - 主代理用真实清单复核：`build_dataloaders('data/splits/5class','data/Leaves')` → train 178 / val 58 / test 58，batch `(8,3,128,128)` float32，标签 0–4
+  - `py_compile src/utils.py src/data.py` 通过
+- 验证结论: 通过
+- 提交: `feat(data): 实现数据集与 DataLoader 管道`
+- 遗留问题 / 下一步: T2.3 训练脚本；T2.4 代码审查
