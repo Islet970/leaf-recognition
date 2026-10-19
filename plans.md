@@ -398,7 +398,7 @@ cd /c/Users/Voidkongbai/Desktop/DeepLearning
 | `fig4_8_gradcam_examples.png` | 4.3/5.2 | Grad-CAM 示例（可选） |
 | `fig4_9_robustness.png` | 4.3/5.2 | 压力测试对比（强烈建议，见下） |
 
-> A/B/C/D 四模型对比图由 `tools/make_comparison_plots.py` 生成（每次训练完成后必须重绘）：五类白底图存 `pic/spec-train-test/`，32 类白底图存 `pic/spec-train-test-all/`；实景实验图分别存 `pic/spe-train-live-test/`、`pic/spelive-train-test/`、`pic/spe-train-live-test-all/`、`pic/spelive-train-test-all/`。文件名为 `fig4_1_train_loss_ABCD.png`、`fig4_2_train_acc_ABCD.png`、`fig4_3_test_loss_bar.png`、`fig4_4_test_acc_bar.png`、`fig4_6_sample_predictions_ABCD.png`。
+> A/B/C/D 四模型对比图由 `tools/make_comparison_plots.py` 生成（每次训练完成后必须重绘）：五类白底图存 `pic/spec-train-test/`，32 类白底图存 `pic/spec-train-test-all/`；实景实验图分别存 `pic/spe-train-live-test/`、`pic/spelive-train-test/`、`pic/spe-train-live-test-all/`（E3c 不执行）。文件名为 `fig4_1_train_loss_ABCD.png`、`fig4_2_train_acc_ABCD.png`、`fig4_3_test_loss_bar.png`、`fig4_4_test_acc_bar.png`、`fig4_6_sample_predictions_ABCD.png`。
 
 **样本选择规则**（`src/report_figures.py`，不要硬编码文件名）：
 1. A 错、D 对的样本（若有）；
@@ -588,7 +588,7 @@ DeepLearning/
 │  ├─ spe-train-live-test/    # E1：W5 → 实景 _test/_test_hard
 │  ├─ spe-train-live-test-all/ # E3b：W32 → 实景 5 类子集
 │  ├─ spelive-train-test/     # E2：L5 实景训练 → 实景测试
-│  └─ spelive-train-test-all/ # E3c：L32（依赖 32 类实景数据）
+│  └─ spelive-train-test-all/ # E3c：用户确认不执行（仅预留）
 └─ results/{figures,tables,predictions,screenshots}/
 ```
 
@@ -603,7 +603,7 @@ DeepLearning/
 7. **E2（L5）**：实景训练 A/B/C/D（leaf01-03 train / leaf05 val / leaf04 test），输出 `pic/spelive-train-test/` 标准图 + 困难测试图。
 8. **E3a（W32）**：生成 all32 数据/缓存，训练 A/B/C/D，白底 test 标准图 → `pic/spec-train-test-all/`。
 9. **E3b**：W32 → 实景 5 类子集，输出 `pic/spe-train-live-test-all/` 两张组合柱状图。
-10. **E3c（L32）**：需 32 类实景数据；有则训练并输出 `pic/spelive-train-test-all/`，没有则记录 BLOCKED。
+10. **E3c（L32）**：用户确认其它种类实景不做演示，**不执行**；目录 `pic/spelive-train-test-all/` 仅保留不使用。
 11. **网页与报告素材**：网页、截图、压力测试、报告图表。
 
 ---
@@ -626,7 +626,7 @@ DeepLearning/
 - [x] A 冒烟训练 1 epoch 正常；全量训练每个 run 有 `best.pt`、`history.csv`、`train.log` — 2026-10-19
 - [ ] test 预测 CSV 五类每个模型 58 行、全类每个模型 358 行，各类概率和为 1。
 - [ ] E1 实景评测每个模型 432 / 227 行；E2 每个模型 52 / 35 行；E3b 使用 32 类标签；A/B/C/D 顺序一致。
-- [ ] E1 / E2 / E3a / E3b 图表全部生成到指定目录；E3c 若数据缺失则明确 BLOCKED。
+- [ ] E1 / E2 / E3a / E3b 图表全部生成到指定目录；E3c 不执行（用户确认）。
 - [ ] 报告所需图表全部生成，中文无方框，A/B/C/D 顺序一致。
 - [ ] 网页能加载 A/B/C/D；上传、拍照、实时、模型切换、Top-3、Grad-CAM 均可用。
 - [ ] 摄像头轮询不重叠；切后台暂停；拒绝权限时有提示且上传仍可用。
@@ -833,7 +833,7 @@ DeepLearning/
 - [ ] T5.4 生成 all32 数据/注册表/缓存（1798 → 1082/358/358）
 - [ ] T5.5 E3a：W32 训练（A/B/C/D）→ 白底 test 标准图，输出 `pic/spec-train-test-all/`
 - [ ] T5.6 E3b：W32 → 实景 5 类子集，输出 `pic/spe-train-live-test-all/` 两张组合柱状图
-- [ ] T5.7 E3c：L32 实景训练（依赖 32 类实景数据；缺失则记录 BLOCKED）→ `pic/spelive-train-test-all/`
+- [x] T5.7 E3c 不执行（用户确认：其它种类实景不做演示）
 - [ ] T5.8 全部产物校验、WORKLOG 记录与 git 提交
 
 ---
@@ -851,7 +851,7 @@ DeepLearning/
 
 - **每个量级固定四个模型 A/B/C/D**；E（仅 CBAM）只用于消融，不进入四模型对比图。
 - 同一量级内，白底训练与实景训练使用完全相同的模型结构、超参、seed=42、40 epoch、patience=20，保证可比。
-- 当前状态：W5（`runs/5class`）的 A/B/C/D/E 已训练，A/B/C/D 为四模型组；E1 尚未执行；L5、W32、L32 均待执行。
+- 当前状态：W5（`runs/5class`）的 A/B/C/D/E 已训练，A/B/C/D 为四模型组；E1 尚未执行；L5、W32 待执行；L32 不执行。
 - 四模型组在每个实验中都必须保持一致；不能因为某次结果不好而替换模型或单独调参。
 
 ### 15.2 数据与划分
@@ -896,12 +896,12 @@ DeepLearning/
 | **E2** | S | L5 实景（301 train） | `_test` leaf04 52 / `_test_hard` leaf04 35 | `runs/live5` | `pic/spelive-train-test/` |
 | **E3a** | A | W32 白底（1082 train） | Leaves test 358 | `runs/all32` | `pic/spec-train-test-all/` |
 | **E3b** | A | W32 白底 | 实景 5 类子集 432 / 227 | `runs/all32` | `pic/spe-train-live-test-all/` |
-| **E3c** | A | L32 实景（数据依赖） | 实景 test | `runs/live32` | `pic/spelive-train-test-all/` |
+| ~~E3c~~ | A | —（用户确认其它种类实景不做演示） | — | — | — |
 
 - **E1** 不重新训练，只做推理评测。
 - **E2** 每个模型训练 40 epoch，产物与 W5 相同：`best.pt/last.pt/history.*/config.json/test_metrics.json/train.log`。
 - **E3b** 的 32 类模型只在 5 个有实景数据的类别上评测；其他 27 类的预测一律算错。报告写清“实景覆盖 5/32 类”，不能声称 32 类实景泛化。
-- **E3c** 需要 32 类实景帧（每类 leaf01–05）。当前只有 5 类，未补齐时标记 **BLOCKED**，不训练、不伪造结果；补齐后再执行。
+- **E3c 不执行**：用户确认其它种类实景不做演示；32 类模型只做白底测试（E3a）和 5 类实景子集测试（E3b）。
 
 ### 15.4 输出与图表命名
 
@@ -934,7 +934,7 @@ DeepLearning/
 - `pic/spec-train-test-all/fig4_4_test_acc_bar.png`
 - `pic/spec-train-test-all/fig4_6_sample_predictions_ABCD.png`
 
-**E3c（若执行）**：与 E2 相同的 5 张标准图，保存到 `pic/spelive-train-test-all/`。
+**E3c（不执行）**：用户确认其它种类实景不做演示；`pic/spelive-train-test-all/` 目录保留但留空。
 
 ### 15.5 执行步骤与命令
 
@@ -1018,22 +1018,7 @@ DeepLearning/
   --out pic/spe-train-live-test-all --tag test_hard
 ```
 
-**T5.7 E3c（L32，条件执行）**：先检查 `data/leaf` 是否覆盖 32 类且每类有 leaf01–05。满足时：
-
-```bash
-"C:/Anaconda/envs/torch_env/python.exe" tools/build_live_dataset.py \
-  --leaf-dir data/leaf --mode video-split --registry data/class_registry_all32.json --out data/splits/live32
-"C:/Anaconda/envs/torch_env/python.exe" -m src.train \
-  --models A B C D --data data/splits/live32 --image-root data/leaf \
-  --registry data/class_registry_all32.json --num-classes 32 \
-  --epochs 40 --batch-size 32 --eval-batch-size 64 --seed 42 --patience 20 \
-  --output runs/live32 --num-workers 0 --threads 8
-"C:/Anaconda/envs/torch_env/python.exe" tools/make_comparison_plots.py \
-  --runs runs/live32 --models A B C D --data data/splits/live32 --image-root data/leaf \
-  --registry data/class_registry_all32.json --out pic/spelive-train-test-all --dpi 160
-```
-
-不满足时：在 `WORKLOG.md` 写 `E3c BLOCKED: 32-class live data missing (covered 5/32)`，跳过训练。
+**T5.7 E3c（不执行）**：用户确认其它种类实景不做演示，跳过 L32 训练；不生成 `runs/live32`，不写 `pic/spelive-train-test-all/`。
 
 **T5.8 验收**：按 §15.8 逐项检查，更新 `plans.md` 勾选，写日志并提交。
 
@@ -1050,7 +1035,7 @@ DeepLearning/
 
 ### 15.7 风险与依赖
 
-- **32 类实景训练缺数据**：当前只有 5 类实景，E3c 无法真实执行；不得用白底图冒充实景，也不得把 5 类结果说成 32 类泛化。
+- **32 类实景不做**：用户确认其它种类实景不做演示；E3c 不执行，不构成风险。不得用白底图冒充实景，也不得把 5 类结果说成 32 类泛化。
 - **困难测试样本少**：每类 2–13 张，海桐仅 2 张；报告用 Wilson 置信区间说明不确定性，不能只报一个百分比。
 - **实景训练集小且不均衡**：301 张、最多 76 / 最少 43；报告每类 recall，必要时加 class weight（但四个模型必须一致）。
 - **白底捷径**：E1/E3b 的实景结果才是跨域泛化的主要证据；白底 test 接近饱和不能说明模型学到了叶片形状。
@@ -1065,6 +1050,6 @@ DeepLearning/
 - [ ] E2：`runs/live5` 四个模型各有 7 个产物；`pic/spelive-train-test/` 下 5 张标准图 + 2 张困难测试图存在且非空；样本网格 3×4；
 - [ ] E3a：`runs/all32` 四个模型各有 7 个产物；`pic/spec-train-test-all/` 下 5 张标准图存在且非空；
 - [ ] E3b：`pic/spe-train-live-test-all/` 下 2 张图存在且非空；报告明确“实景覆盖 5/32 类”；
-- [ ] E3c：完成或明确 BLOCKED 并记录原因；
+- [x] E3c：不执行（用户确认其它种类实景不做演示）；
 - [ ] 所有图的中文正常、四模型顺序一致、数值与 metrics CSV 对得上；
 - [ ] `plans.md` 勾选、`WORKLOG.md` 记录、git 提交完成。
