@@ -55,7 +55,7 @@
 | 勾选 `plans.md` | ✅ | ❌ |
 | 写 `WORKLOG.md` | ✅ | ❌ |
 | `git commit / push` | ✅ | ❌ |
-| 修改 `data/cato.txt` | ❌ | ❌（任何人都不行） |
+| 改写类别映射（`data/class_map.json` / `plans.md` §13） | ❌ | ❌（需用户确认） |
 
 ---
 
@@ -96,7 +96,7 @@ effort: medium      # 推理等级 medium
 - **一次只做一个可验收任务**；发现需要扩大范围时，停下来报告，由主代理重新拆分。
 - **禁止**修改 `plans.md`、`WORKLOG.md`、`AGENTS.md`。
 - **禁止**执行 `git add / commit / push`。
-- **禁止**改写 `data/cato.txt` 或删除原始数据。
+- **禁止**改写 `data/class_map.json` / `plans.md` §13 映射或删除原始数据。
 - **文档查阅必须给出出处**：仓库内文件用 `文件:行号`，外部资料用 URL + 版本/日期；查不到就明确说“未找到”，**不得凭记忆编造 API 或参数**。
 - 代码审查输出格式：每条问题包含 `严重级别（阻塞/重要/建议）`、`文件:行号`、`失败场景`、`修复建议`；没有问题时也要写明检查了哪些范围。
 
@@ -177,7 +177,7 @@ effort: medium      # 推理等级 medium
 示例：
 
 ```text
-feat(data): 实现 cato 解析与五类分层划分
+feat(data): 实现五类分层划分
 
 步骤: T1.1
 改动: 新增 tools/build_dataset.py，生成 class_registry.json 与 5class 划分清单
@@ -190,7 +190,7 @@ feat(data): 实现 cato 解析与五类分层划分
 
 - 仓库未初始化时，由主代理先 `git init`，并确保 `.gitignore` 覆盖大数据与生成物。
 - **禁止提交**：`data/Leaves/`（约 1 GB）、`data/leaf/`、`data/dataset/`、`data/cache/`、`runs/`、模型权重（`*.pt` / `*.pth`）、`__pycache__/`、Office 临时文件（`~$*`）、密钥与凭据。
-- 应提交：源代码、`plans.md`、`WORKLOG.md`、`AGENTS.md`、`data/cato.txt`、注册表与划分清单、文档、报告图表与截图。
+- 应提交：源代码、`plans.md`、`WORKLOG.md`、`AGENTS.md`、`data/class_map.json`、注册表与划分清单、文档、报告图表与截图。
 - “上传”：配置了 remote 时提交后 `git push`；没有 remote 时只做本地提交，并在日志中注明“未配置 remote，未推送”。
 - 禁止 `push --force`，禁止改写已推送的历史。
 
@@ -238,14 +238,26 @@ feat(data): 实现 cato 解析与五类分层划分
    - 运行 `python tools/verify_project.py`，逐项 PASS/FAIL；
    - 对照 `plans.md` §8 验证清单全部勾选；
    - 主代理汇总验证结果后才向用户报告“完成”。
+5. **训练完成后的强制图表门禁**：每次确认训练完成（新 run 通过 T3.2 校验）后，必须运行：
+   ```bash
+   python tools/make_comparison_plots.py --runs runs/5class --models A B C D \
+     --data data/splits/5class --registry data/class_registry.json --out pic
+   ```
+   并在 `pic/` 生成/更新以下 5 张图：
+   - `fig4_1_train_loss_ABCD.png`：A/B/C/D 训练损失–轮次折线图（四模型同图）；
+   - `fig4_2_train_acc_ABCD.png`：A/B/C/D 训练准确率–轮次折线图（四模型同图）；
+   - `fig4_4_test_acc_bar.png`：A/B/C/D 测试准确率柱状图；
+   - `fig4_3_test_loss_bar.png`：A/B/C/D 测试损失柱状图；
+   - `fig4_6_sample_predictions_ABCD.png`：至少 3 个测试样本 × 4 个模型的识别效果对比。
+   五张图都存在且非空，训练步骤才算完成；图表与训练结果一并提交。E 只用于消融，不进入四模型对比图。
 
 ---
 
 ## 8. 项目硬约束（来自 `plans.md`）
 
-- `data/cato.txt` **只读**：任何步骤都不得改写；运行前后 SHA-256 必须不变。
-- 类别以 cato 的 label 与文件编号区间为准；当前训练子集固定为 cato label **4/12/15/17/20**（紫荆、海桐、香樟、桂花、紫薇），共 294 张。
-- 划分使用**按 cato label 生成的分层种子**（seed 42 基准），扩类时已有类别的划分不得变化。
+- `data/class_map.json` 与 `plans.md` §13 是**唯一类别映射来源**：不得擅自改写；确需变更（扩类/修正）时先向用户确认并记录日志。
+- 类别以 Flavia 编号与文件编号区间为准；当前训练子集固定为 Flavia 编号 **4/12/15/17/20**（紫荆、海桐、香樟、桂花、紫薇），共 294 张。
+- 划分使用**按 Flavia 编号生成的分层种子**（seed 42 基准），扩类时已有类别的划分不得变化。
 - 首次训练开始后，`--classes` 的顺序（即 `py_label` 映射）**不得再改**。
 - 本机无 NVIDIA GPU，训练在 CPU 上进行；安装依赖遵循 `plans.md` §3.1，并在日志记录。
 - `plans.md` 中的既定决策（模型结构、类别标准、目录结构）不得擅自变更；确需变更时先向用户确认并记录日志。
@@ -258,7 +270,7 @@ feat(data): 实现 cato 解析与五类分层划分
 - 未验证就勾选 `plans.md`；
 - 主代理亲自编写/修改代码、做代码审查或查阅文档后直接下结论；
 - 子代理直接提交 git、修改 `plans.md` / `WORKLOG.md` / `AGENTS.md`；
-- 向 `data/cato.txt` 写入或删除原始数据；
+- 向 `data/class_map.json` 写入未经确认的映射，或删除原始数据；
 - 提交数据集、模型权重、缓存、密钥；
 - 未经用户确认进行大规模重构、删除文件或改变既定方案。
 

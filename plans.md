@@ -375,6 +375,8 @@ cd /c/Users/Voidkongbai/Desktop/DeepLearning
 | `fig4_8_gradcam_examples.png` | 4.3/5.2 | Grad-CAM 示例（可选） |
 | `fig4_9_robustness.png` | 4.3/5.2 | 压力测试对比（强烈建议，见下） |
 
+> 当前已交付的 A/B/C/D 四模型对比图由 `tools/make_comparison_plots.py` 生成到 `pic/`（每次训练完成后必须重绘）：`fig4_1_train_loss_ABCD.png`、`fig4_2_train_acc_ABCD.png`、`fig4_3_test_loss_bar.png`、`fig4_4_test_acc_bar.png`、`fig4_6_sample_predictions_ABCD.png`。
+
 **样本选择规则**（`src/report_figures.py`，不要硬编码文件名）：
 1. A 错、D 对的样本（若有）；
 2. D 置信度最高的正确样本；
@@ -553,6 +555,7 @@ DeepLearning/
 │  └─ verify_project.py
 ├─ webapp/                    # 见 5.1
 ├─ runs/{5class,all32}/<run_id>/
+├─ pic/                       # A/B/C/D 训练完成后的对比图（每次训练后重绘）
 └─ results/{figures,tables,predictions,screenshots}/
 ```
 
@@ -781,3 +784,7 @@ DeepLearning/
 
 - [x] T3.1 五类 A/B/C/D/E 40 epoch 全量训练完成 — 2026-10-19（patience=20）
 - [x] T3.2 每个 run 的 `best.pt` / `history.csv` / `train.log` / `test_metrics.json` 校验通过 — 2026-10-19
+
+### 14.4 评测与报告图表
+
+- [x] T4.1 生成 A/B/C/D 四模型对比图到 `pic/`：训练 loss/acc 折线、测试 acc/loss 柱状、至少 3 样本 × 4 模型识别对比 — 2026-10-19
