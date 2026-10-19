@@ -276,3 +276,24 @@
 - 验证: 计划中已无 E3c 训练命令与产物要求
 - 提交: `docs(plan): 取消 32 类实景训练（E3c）`
 - 下一步: T5.1 实景清单 → E1 → E2 → E3a → E3b
+
+---
+
+## [2026-10-19 17:00] T5.1 生成实景清单与视频级划分
+
+- 执行代理: 子代理（编码，opus / medium）+ 主代理复核
+- 目标: 生成 E1/E2/E3b 所需的实景清单，并防止同一视频跨 split
+- 改动:
+  - 新增 `tools/build_live_dataset.py`
+  - 新增 `data/splits/live_all/{test,hard_test}.csv`（432 / 227）
+  - 新增 `data/splits/live5/{train,val,test,hard_test}.csv`（301 / 79 / 52 / 35）
+  - 新增 `data/splits/live_all32/{test,hard_test}.csv`（432 / 227，32 类 py_label）
+- 命令与结果:
+  - `build_live_dataset.py --mode all` → live_all 432/227
+  - `build_live_dataset.py --mode video-split` → train 301（leaf01-03）/ val 79（leaf05）/ test 52（leaf04）/ hard_test 35（leaf04）
+  - `build_live_dataset.py --mode all --registry class_registry_all32.json` → live_all32 432/227
+  - 主代理复核：各类计数与 §15.2 完全一致；train/val/test 文件名两两无交集；视频前缀严格分离；live_all32 的 py_label = [3,11,13,15,18] 与 32 类注册表一致；hard_test 全部为 leaf04
+  - 子代理 SHA-256：live5 467 行 unique=467、跨 split 重复 0；live_all/32 各 659 行 unique=659；dHash 跨 split 近重复 0
+- 验证结论: 通过
+- 提交: `feat(data): 生成实景清单与视频级划分`
+- 遗留问题 / 下一步: E1 评测；E2 实景训练

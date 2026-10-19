@@ -827,7 +827,7 @@ DeepLearning/
 
 ### 14.5 实景与全类扩展实验（新增计划，尚未执行）
 
-- [ ] T5.1 生成实景清单（live_all / live5 / live_all32）并做视频级泄漏检查
+- [x] T5.1 生成实景清单（live_all / live5 / live_all32）并做视频级泄漏检查 — 2026-10-19
 - [ ] T5.2 E1：W5 五类白底模型 → `_test` / `_test_hard`，输出 `pic/spe-train-live-test/` 两张组合柱状图
 - [ ] T5.3 E2：L5 实景训练（leaf01-03 / leaf05 / leaf04，A/B/C/D）→ 标准图 + 困难测试，输出 `pic/spelive-train-test/`
 - [ ] T5.4 生成 all32 数据/注册表/缓存（1798 → 1082/358/358）
