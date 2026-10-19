@@ -71,3 +71,20 @@
 - 验证结论: 通过
 - 提交: `feat(data): 生成 32 类映射与中文名清单`
 - 遗留问题 / 下一步: T1.3 构建五类划分
+
+---
+
+## [2026-10-19 13:42] T2.2 实现 A/B/C/D/E 模型
+
+- 执行代理: 子代理（编码，opus / medium）+ 主代理复核
+- 目标: 按 plans §2 实现五个可对比模型与 Grad-CAM 目标层
+- 改动:
+  - 新增 `src/__init__.py`
+  - 新增 `src/models.py`：`MODEL_IDS`、`MODEL_NAMES`、`build_model()`、`MSFF`、`CBAM`、`LeafNetV3`、`get_gradcam_layer()`
+  - A=MobileNetV3-Small、B=MobileNetV2、C=A+MSFF、D=A+MSFF+CBAM、E=A+CBAM
+- 命令与结果:
+  - 子代理：五模型 forward `(2,5)`；A/B 预训练权重下载成功；unexpected keys 全为 0，missing 仅为新增模块/分类头
+  - 主代理独立复核：A 1,522,981 / B 2,230,277 / C 1,805,797 / D 1,847,367 / E 1,564,551；Grad-CAM 层输出 A/E 576×4×4、B 1280×4×4、C/D 576×8×8
+- 验证结论: 通过（参数与计划表一致；代码审查 T2.4 待做）
+- 提交: `feat(models): 实现 A/B/C/D/E 五模型与 Grad-CAM 层`
+- 遗留问题 / 下一步: T2.4 独立代码审查；T2.3 训练脚本
