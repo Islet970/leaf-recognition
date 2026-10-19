@@ -342,3 +342,40 @@
 - 验证结论: 通过。白底训练模型在实景上仅 35–51%（普通）/ 23–34%（困难），域差异显著，符合预期
 - 提交: `feat(eval): 完成 E1 白底模型实景评测`
 - 遗留问题 / 下一步: E2 实景训练完成后生成标准图；E3a/E3b 待 32 类训练完成
+
+---
+
+## [2026-10-19 17:40] 暂停训练，准备重启会话
+
+- 执行代理: 主代理
+- 原因: 用户要求暂停当前工作并重启
+- 已完成并提交:
+  - T5.1 实景清单（`01db565`）
+  - T5.4 32 类数据/注册表/缓存（`dfb4d20`）
+  - T5.2 E1 白底模型实景评测（`7b015a8`）
+- 已停止的后台任务:
+  - **E2 `runs/live5`**: A 已完成（有 `test_metrics.json`）；B 训练中被停止（有 `best/last.pt`，无 `test_metrics.json`）；C/D 未开始
+  - **E3a `runs/all32`**: A 训练中被停止（有 `best/last.pt`，无 `test_metrics.json`）；B/C/D 未开始
+  - 部分 run 目录在 `.gitignore` 中，不入库；恢复时直接重跑会覆盖
+- 工作区状态: 无未提交代码改动；仅 `.claude/` 与 `pic/spec-train-test-all/`（占位目录）未跟踪
+- 恢复步骤:
+  1. 读 `plans.md` §14.5 与 §15.5，从 T5.3 继续；
+  2. 重跑 E2（五类实景）：
+     ```bash
+     C:/Anaconda/envs/torch_env/python.exe -m src.train --models A B C D \
+       --data data/splits/live5 --image-root data/leaf --registry data/class_registry.json \
+       --num-classes 5 --epochs 40 --batch-size 32 --eval-batch-size 64 --seed 42 --patience 20 \
+       --output runs/live5 --num-workers 0 --threads 8
+     ```
+  3. 重跑 E3a（32 类白底）：
+     ```bash
+     C:/Anaconda/envs/torch_env/python.exe -m src.train --models A B C D \
+       --data data/splits/all32 --registry data/class_registry_all32.json --num-classes 32 \
+       --cache data/cache/leaf_320_all32 --epochs 40 --batch-size 32 --eval-batch-size 64 \
+       --seed 42 --patience 20 --output runs/all32 --num-workers 0 --threads 8
+     ```
+  4. E2 图：`make_comparison_plots.py --runs runs/live5 --data data/splits/live5 --image-root data/leaf --registry data/class_registry.json --out pic/spelive-train-test --dpi 160`；困难测试用 `evaluate_live.py --manifest data/splits/live5/hard_test.csv --out pic/spelive-train-test --tag test_hard`
+  5. E3a 图：`make_comparison_plots.py --runs runs/all32 --data data/splits/all32 --image-root data/Leaves --registry data/class_registry_all32.json --out pic/spec-train-test-all --dpi 160`
+  6. E3b：`evaluate_live.py --runs runs/all32 --registry data/class_registry_all32.json --manifest data/splits/live_all32/test.csv --image-root data/leaf --out pic/spe-train-live-test-all --tag test`
+- 会话 fork: `claude --continue --fork-session` 或 `claude --resume ed29ac0f-57fc-4e00-85d5-ed04860e092b --fork-session`
+- 提交: `docs(log): 记录训练暂停点与恢复步骤`
