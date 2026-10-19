@@ -2,62 +2,65 @@
 
 ## Context（背景与现状）
 
-本项目要完成四件事：**（1）校对 cato 与公开表，生成 32 类对照 MD 和类别注册表；（2）按 cato label 划出 5 类训练/验证/测试集；（3）训练 A/B/C/D 四个可对比模型并产出报告所需图表；（4）做一个支持摄像头实时识别、上传图片、模型切换和 Grad-CAM 的网页。** 后续再扩到全部 32 类。
+本项目要完成四件事：**（1）以 §13 的 32 类映射生成类别注册表与数据清单（分类校验已完成）；（2）按 Flavia 编号划出 5 类训练/验证/测试集；（3）训练 A/B/C/D 四个可对比模型并产出报告所需图表；（4）做一个支持摄像头实时识别、上传图片、模型切换和 Grad-CAM 的网页。** 后续再扩到全部 32 类。
 
-现状核实结果：
+现状核实结果（2026-10-19）：
 
 - [data/Leaves/](data/Leaves/) 是 **Flavia 公开数据集的扁平副本**：1798 张 1600×1200 JPEG，文件名 1001–3621，**没有类别子文件夹**，类别由编号区间决定。
-- [data/cato.txt](data/cato.txt) **现在有 32 行数据**（标签 1–12、14–33，无 13），格式为制表符分隔的 5 列：`label / Scientific Name / Common Name(s) / filename / URL`。
-- **校对结论**：cato 与 [公开数据集类别.md](公开数据集类别.md) 的 **32 个 label 全部一致、32 个编号区间全部一致**，不需要重新编码。差异仅在：
-  - cato 学名带作者缩写/大小写（如 `Acer Palmatum`、`Populus ×canadensis`），公开表是简化名；
-  - cato 第 25 类写作 `Tonna sinensis`，公开表为 `Toona sinensis`（公开表已注明 cato 是拼写错误）；
-  - 中文名只在公开表里，cato 没有。
-  **处理原则：label 和 filename 区间以 cato 为标准；中文名从公开表补入派生注册表和 Markdown，不改写 cato 的原始 5 列格式。**
-- 需要新增一份 **`Flavia类别对照表.md`**：32 类逐行列出 cato label、key、中文名、cato 学名、英文名、区间、实际张数、备注，作为展示和后续扩类依据。
-- [Desktop/Leaves/](../Leaves/) 下的 5 个学名文件夹（Cercis chinensis 等）内容与 Flavia 对应区间完全一致（编号、尺寸、2007 年时间戳），**是 Flavia 白底扫描图，不是校园实景照片**。项目内未找到其他实景图，因此实景流程先预留。
+- **类别映射以本计划 §13 的 32 类表为准**：Flavia 编号 1–12、14–33（无 13），编号区间、学名、英文名、中文名均已核对。项目内**没有也不需要 `cato.txt`**；后续脚本、注册表、网页一律不再依赖它，旧文档中的“cato label”统一理解为 Flavia 原始编号。
+- **分类校验已完成**：32/32 编号一致、32/32 区间一致，无需重新编码；结果已落盘为 [data/Flavia类别对照表.md](data/Flavia类别对照表.md)（32 类全表、1798 张、五类子集划分表）。
+- **实景视频帧已抽取**：`data/leaf/{camphor,cercis,lagerstroemia,osmanthus,pittosporum}_test/` 共 **791 张**实景帧（160/163/155/145/168），来自 5 段 `leaf01–leaf05.mp4` 的抽帧、去模糊、dHash 去重结果；`data/test_preview/` 有 5 张预览图、`extract_stats.json` 与 `frame_quality.csv`。这批帧是手持叶片的实景照片，**仅作实景/跨域测试，不参与训练**；原始 mp4 已不在项目内。
+- [Desktop/Leaves/](../Leaves/) 下的 5 个学名文件夹是 Flavia 白底扫描图，可与 `data/Leaves` 对应区间互相核对；训练与评测仍以 `data/Leaves` 为准。
 - 报告模板要求：A/B/C/D 四模型对比、训练 loss/acc 曲线、测试 loss/acc、至少 3 个样本对比、消融实验，以及支持模型切换/摄像头/上传的网页。
 - 本机 **无 NVIDIA GPU**：Ryzen 7 7840HS（8C/16T）、15.2 GB RAM；`torch_env` 为 CPU 版 PyTorch 2.5.1；缺 scikit-learn、matplotlib、pandas、flask、tqdm。
-- 现有 [tools/extract_frames.py](tools/extract_frames.py) 是视频抽帧脚本，与本方案不冲突，保留不动。
+- 现有 [tools/extract_frames.py](tools/extract_frames.py)、[tools/extract_test_frames.py](tools/extract_test_frames.py) 是已完成的数据准备脚本，保留不动。
 
 已确认的决策：
 
 | 项目 | 决策 |
 |---|---|
-| 类别标准 | **以 `data/cato.txt` 的 label 和 filename 区间为准**；不改写 cato 原格式 |
-| 当前训练 | 5 类子集：cato label **4/12/15/17/20**（紫荆、海桐、香樟、桂花、紫薇），共 294 张 |
-| 后续扩展 | 全 32 类（cato label 1–12、14–33），1798 张；通过 `--classes` 配置切换，不改代码 |
-| 划分 | 按类分层 6:2:2，固定 seed，**seed 按 cato label 生成**，扩类时已有类别的划分不变 |
+| 类别标准 | **以本计划 §13 的 32 类映射为准**（Flavia 编号 + 文件编号区间）；不依赖 `cato.txt` |
+| 当前训练 | 5 类子集：Flavia 编号 **4/12/15/17/20**（紫荆、海桐、香樟、桂花、紫薇），共 294 张 |
+| 后续扩展 | 全 32 类（编号 1–12、14–33），1798 张；通过 `--classes` 配置切换，不改代码 |
+| 划分 | 按类分层 6:2:2，固定 seed，**seed 按 Flavia 编号生成**，扩类时已有类别的划分不变 |
 | 基础网络 | MobileNetV3-Small（ImageNet 预训练），分类头 `num_classes` 可配置（5 或 32） |
-| 实景照片 | 暂未导入；预留 `data/campus/<key>/` 与微调/跨域评测流程 |
+| 实景照片 | **已有 791 张实景测试帧**（`data/leaf/*_test/`，不参与训练）；`data/campus/<key>/` 继续预留实地拍摄与微调 |
 | 最终模型名 | **LeafNet-MSC**（Multi-Scale Fusion + CBAM，基于 MobileNetV3-Small） |
-| 新增交付物 | `Flavia类别对照表.md`、`data/zh_names.json`、`data/class_registry.json`、`data/class_registry_all32.json`、5 类与 32 类两套训练清单 |
+| 现有交付物 | `data/Flavia类别对照表.md`（已完成） |
+| 待新增交付物 | `data/class_map.json`（32 类映射，供程序读取）、`data/zh_names.json`、`data/class_registry.json`、`data/class_registry_all32.json`、5 类与 32 类两套训练清单、实景测试清单 |
 
 ---
 
 ## 1. 数据集与划分
 
-### 1.1 cato.txt 的实际格式与派生注册表
+### 1.1 Flavia 编号映射与派生注册表
 
-`data/cato.txt` 是**制表符分隔的 5 列**，保持原样不动：
+**权威映射**是本文 §13 的 32 类表，已同步为 [data/Flavia类别对照表.md](data/Flavia类别对照表.md)。程序读取 `data/class_map.json`（由 §13 一次性生成并提交），不再解析任何 `cato.txt`：
 
-```text
-label<TAB>Scientific Name<TAB>Common Name(s)<TAB>filename<TAB>URL
-4<TAB>Cercis chinensis<TAB>Chinese redbud<TAB>1123-1194<TAB>http://...
-12<TAB>Pittosporum tobira (Thunb.) Ait. f.<TAB>Japanese cheesewood<TAB>2051-2113<TAB>http://...
+```json
+{
+  "source": "plans.md §13",
+  "classes": [
+    {"flavia_label": 4, "key": "cercis_chinensis", "zh_name": "紫荆",
+     "scientific": "Cercis chinensis", "common": "Chinese redbud", "range": [1123, 1194]},
+    {"flavia_label": 12, "key": "pittosporum_tobira", "zh_name": "海桐",
+     "scientific": "Pittosporum tobira (Thunb.) Ait. f.", "common": "Japanese cheesewood", "range": [2051, 2113]}
+  ]
+}
 ```
 
-`tools/build_dataset.py::parse_cato()` 解析为：
+`tools/build_dataset.py` 的字段含义：
 
-- `cato_label`：原始 label（1–12、14–33，**不连续**，不能直接当 PyTorch 标签）；
-- `scientific`、`common`、`range`、`url`：原样读取；
-- `key`：由学名生成的小写 slug（如 `cercis_chinensis`），在注册表中保持稳定；第 25 类手动覆盖为 `toona_sinensis`（cato 原文拼写为 `Tonna`，备注保留差异）。
-- `zh_name`：从 [公开数据集类别.md](公开数据集类别.md) 补入，**不写回 cato**；
+- `flavia_label`：Flavia 原始编号（1–12、14–33，**不连续**，不能直接当 PyTorch 标签）；
+- `scientific`、`common`、`range`：来自 §13 映射；
+- `key`：由学名生成的小写 slug（如 `cercis_chinensis`），在注册表中保持稳定；第 25 类手动覆盖为 `toona_sinensis`（原表拼写 `Tonna`，备注保留差异）；
+- `zh_name`：来自 [公开数据集类别.md](公开数据集类别.md)，固化到 `data/zh_names.json`；
 - `py_label`：当前训练子集内的连续 0..N-1，映射关系写入注册表。
 
 `--classes` 支持三种写法：
 
 ```bash
---classes 4,12,15,17,20          # 当前五类，按 cato label
+--classes 4,12,15,17,20          # 当前五类，按 Flavia 编号
 --classes cercis_chinensis,...   # 按 key
 --classes all                    # 全部 32 类
 ```
@@ -66,10 +69,10 @@ label<TAB>Scientific Name<TAB>Common Name(s)<TAB>filename<TAB>URL
 
 ```json
 {
-  "source": "data/cato.txt",
+  "source": "data/class_map.json",
   "seed": 42,
   "classes": [
-    {"cato_label": 4, "py_label": 0, "key": "cercis_chinensis",
+    {"flavia_label": 4, "py_label": 0, "key": "cercis_chinensis",
      "zh_name": "紫荆", "scientific": "Cercis chinensis",
      "common": "Chinese redbud", "range": [1123, 1194],
      "image_count": 67, "subset": "5class"}
@@ -79,7 +82,7 @@ label<TAB>Scientific Name<TAB>Common Name(s)<TAB>filename<TAB>URL
 
 当前五类的映射：
 
-| cato label | py label | key | 中文名 | 学名（cato） | 区间 | 张数 |
+| Flavia 编号 | py label | key | 中文名 | 学名 | 区间 | 张数 |
 |---:|---:|---|---|---|---|---:|
 | 4 | 0 | cercis_chinensis | 紫荆 | Cercis chinensis | 1123-1194 | 67 |
 | 12 | 1 | pittosporum_tobira | 海桐 | Pittosporum tobira | 2051-2113 | 55 |
@@ -87,42 +90,42 @@ label<TAB>Scientific Name<TAB>Common Name(s)<TAB>filename<TAB>URL
 | 17 | 3 | osmanthus_fragrans | 桂花 | Osmanthus fragrans | 2291-2346 | 54 |
 | 20 | 4 | lagerstroemia_indica | 紫薇 | Lagerstroemia indica | 2486-2546 | 57 |
 
-> 训练后不要再改 `--classes` 的顺序；checkpoint 里保存 `class_keys` 和 `cato_labels`，网页加载时校验，不一致就拒绝加载。
+> 训练后不要再改 `--classes` 的顺序；checkpoint 里保存 `class_keys` 和 `flavia_labels`，网页加载时校验，不一致就拒绝加载。
 >
 > `py_label` 顺序就是 `--classes` 的书写顺序。若报告想按“桂花、香樟、海桐、紫薇、紫荆”的顺序展示，**在第一次训练前**把命令改成 `--classes 17,15,12,20,4` 即可；一旦开始训练就固定下来。
 
-### 1.2 生成 `Flavia类别对照表.md`
+### 1.2 `Flavia类别对照表.md`（已完成）
 
-`tools/make_class_table.py`（或 `build_dataset.py --write-md` 调用同一函数）读取 cato + 公开表 + `data/Leaves` 实际文件，生成项目根目录的 **`Flavia类别对照表.md`**，内容：
+已于 2026-10-19 生成 [data/Flavia类别对照表.md](data/Flavia类别对照表.md)（32 类、1798 张、五类子集划分表），分类校验工作到此完成。后续仅在映射或数据变更时用 `tools/make_class_table.py` 重新生成，内容包括：
 
-- 中文名来源：首次从 [公开数据集类别.md](公开数据集类别.md) 提取为 `data/zh_names.json`（`cato_label → 中文名`）；注册表和 MD 之后都读这个 JSON，不每次解析 Markdown；
-
-- 校验摘要：32/32 label 一致、32/32 区间一致、无需重新编码；
-- 32 类全表：`cato label | key | 中文名 | 学名（cato） | 英文名 | 编号区间 | 实际张数 | 备注`；
-- 五类训练子集表（label、key、中文名、区间、张数、6:2:2 划分）；
-- 备注列标出：第 25 类 cato `Tonna sinensis` / 公开表 `Toona sinensis`；第 6 类大小写差异；cato 学名带作者缩写；
+- 中文名来源：从 [公开数据集类别.md](公开数据集类别.md) 提取为 `data/zh_names.json`（`flavia_label → 中文名`）；注册表和 MD 之后都读这个 JSON，不每次解析 Markdown；
+- 校验摘要：32/32 编号一致、32/32 区间一致、无需重新编码；
+- 32 类全表：`Flavia 编号 | key | 中文名 | 学名 | 英文名 | 编号区间 | 实际张数 | 备注`；
+- 五类训练子集表（编号、key、中文名、区间、张数、6:2:2 划分）；
+- 备注列标出：第 25 类原表 `Tonna sinensis` / 正确 `Toona sinensis`；第 6 类大小写差异；学名带作者缩写；
 - 后续扩类说明：如何用 `--classes all`、如何补新图。
 
-> 这份 MD 是“给人看”的对照表；`class_registry.json` 是“给程序用”的注册表。两者都由 cato 派生，cato 本身不被改写。
+> 这份 MD 是“给人看”的对照表；`class_registry.json` 是“给程序用”的注册表。两者都由 §13 映射派生，§13 是唯一权威来源。
 
 ### 1.3 `tools/build_dataset.py`
 
-职责：解析 cato → 生成注册表 → 按所选类别分配图片 → 分层划分 → 泄漏检查 → 生成清单/目录。
+职责：读取 `data/class_map.json` → 生成注册表 → 按所选类别分配图片 → 分层划分 → 泄漏检查 → 生成清单/目录。
 
 关键函数：
-- `parse_cato(path)`：读取制表符 5 列，跳过表头；校验 label 唯一、range 合法且互不重叠；URL 可为空。
-- `build_registry(cato_rows, zh_table, leaves_dir, selected)`：合并中文名、生成 key、统计实际张数、分配 `py_label`，写 `data/class_registry.json`。
-- `select_classes(registry, spec)`：支持 `all`、逗号分隔 cato label、逗号分隔 key；所选类别不在 cato 中时报错。
-- `assign_by_ranges(leaves_dir, selected)`：只扫描 `data/Leaves/*.jpg`，要求 4 位数字文件名；落在选中区间的文件分配 `cato_label`/`py_label`，不在任何选中区间的忽略，一个文件落入多个区间则报错。
-- `stratified_split(records, seed=42)`：每类按编号排序，`rng = random.Random(42 + cato_label)` 打乱；`n_val=round(0.2n)`、`n_test=round(0.2n)`，其余 train。**用 cato_label 而不是类内序号做种子，扩类时已有类别的划分保持不变。**
+- `load_class_map(path)`：读取 §13 派生的 32 类映射；校验编号唯一、range 合法且互不重叠。
+- `build_registry(class_rows, zh_table, leaves_dir, selected)`：合并中文名、生成 key、统计实际张数、分配 `py_label`，写 `data/class_registry.json`。
+- `select_classes(registry, spec)`：支持 `all`、逗号分隔 Flavia 编号、逗号分隔 key；所选类别不在映射中时报错。
+- `assign_by_ranges(leaves_dir, selected)`：只扫描 `data/Leaves/*.jpg`，要求 4 位数字文件名；落在选中区间的文件分配 `flavia_label`/`py_label`，不在任何选中区间的忽略，一个文件落入多个区间则报错。
+- `stratified_split(records, seed=42)`：每类按编号排序，`rng = random.Random(42 + flavia_label)` 打乱；`n_val=round(0.2n)`、`n_test=round(0.2n)`，其余 train。**用 Flavia 编号而不是类内序号做种子，扩类时已有类别的划分保持不变。**
 - `leakage_check(...)`：三个 split 文件名两两不相交、并集等于选中图片总数；SHA-256 查重（同内容跨类直接报错）；可选 dHash 近重复报告。
-- `write_manifest(...)`：`data/splits/<subset>/{train,val,test,all}.csv`，列 `filename,image_id,cato_label,py_label,key,zh_name,scientific,common,split,sha256`。
+- `write_manifest(...)`：`data/splits/<subset>/{train,val,test,all}.csv`，列 `filename,image_id,flavia_label,py_label,key,zh_name,scientific,common,split,sha256`。
 - `--materialize`：硬链接（失败则复制）生成 `data/dataset/<subset>/{train,val,test}/<key>/*.jpg`，仅供人工检查；训练仍以 CSV 为准。
 - `--classes`：`4,12,15,17,20` / key 列表 / `all`；默认五类。
+- `--real-dir`：扫描 `data/leaf/<key>_test/*.jpg`，按目录映射生成只读实景测试清单（`--subset real`），不做任何划分。
 
-五类划分（seed 按 cato label）：
+五类划分（seed 按 Flavia 编号）：
 
-| cato label | key | 中文名 | 总数 | train | val | test |
+| Flavia 编号 | key | 中文名 | 总数 | train | val | test |
 |---:|---|---|---:|---:|---:|---:|
 | 4 | cercis_chinensis | 紫荆 | 67 | 41 | 13 | 13 |
 | 12 | pittosporum_tobira | 海桐 | 55 | 33 | 11 | 11 |
@@ -141,20 +144,34 @@ label<TAB>Scientific Name<TAB>Common Name(s)<TAB>filename<TAB>URL
 | 每类张数 | 46–73 |
 
 输出：
-- `data/zh_names.json`：`cato_label → 中文名`，从公开表提取一次，后续复用。
-- `data/class_registry.json`：当前五类的唯一类别来源（`cato_label`、`py_label`、`key`、中文名、学名、英文名、range、image_count、subset）。
+- `data/zh_names.json`：`flavia_label → 中文名`，从公开表提取一次，后续复用。
+- `data/class_registry.json`：当前五类的唯一类别来源（`flavia_label`、`py_label`、`key`、中文名、学名、英文名、range、image_count、subset）。
 - `data/class_registry_all32.json`：后续全类注册表，单独存放，**不覆盖五类注册表**。
 - `data/splits/5class/{train,val,test,all}.csv`：当前五类。
 - `data/splits/all32/{train,val,test,all}.csv`：后续全类；两套清单互不覆盖。
 - `data/splits/<subset>/split_stats.json`：计数、哈希、seed、校验状态。
 - 可选 `--materialize`：用 NTFS 硬链接（失败则复制）生成 `data/dataset/{train,val,test}/<key>/*.jpg`，方便人工检查；**训练仍以 CSV 清单为准**，避免目录被手动改动后不可复现。
 
-> `data/Leaves` 中其余 1504 张（其他 27 类）不参与**当前五类**训练，原文件保持不动；以后扩到全部 32 类只需 `--classes all` 重跑 `build_dataset.py`，只有新增 Flavia 之外的物种才需要改 cato。
+> `data/Leaves` 中其余 1504 张（其他 27 类）不参与**当前五类**训练，原文件保持不动；以后扩到全部 32 类只需 `--classes all` 重跑 `build_dataset.py`；只有新增 Flavia 之外的物种才走 §6 的校园实景流程。
 
 ### 1.4 数据预览与缓存
 
 - `tools/make_dataset_preview.py`：生成 `results/figures/fig2_1_dataset_samples.png`（5 类各 1 张，带中文学名），用于报告 2.1。
 - `tools/prepare_cache.py`：把选中的图片（五类 294 张；全类 1798 张）EXIF 校正、长边缩到 320、JPEG q=95，输出 `data/cache/leaf_320/`，避免每轮重复解码 1600×1200 原图。缓存文件名沿用原编号。
+
+### 1.5 实景测试帧（`data/leaf`，已完成抽帧）
+
+现状：5 类共 **791 张**实景帧已由 `tools/extract_test_frames.py` 抽好（2 fps、去模糊、dHash 去重），预览与统计在 `data/test_preview/`。
+
+- 目录 → 类别映射（**只用于测试**）：
+  - `camphor_test` → 香樟，Flavia 编号 15（160 张）
+  - `cercis_test` → 紫荆，编号 4（163 张）
+  - `lagerstroemia_test` → 紫薇，编号 20（155 张）
+  - `osmanthus_test` → 桂花，编号 17（145 张）
+  - `pittosporum_test` → 海桐，编号 12（168 张）
+- `tools/build_dataset.py --real-dir data/leaf --subset real` 生成 `data/splits/real/all.csv`，列结构同上，`split=test`；
+- `src/evaluate.py --split real` 输出 `results/tables/table4_5_real_scene.csv`，用于报告“白底扫描 → 实景”的跨域对比；
+- **红线**：实景帧绝不加入 train/val，也不与 Flavia 的 test 混合统计；同一视频的连续帧高度相似，只做整体测试集，不再随机拆分。
 
 ---
 
@@ -278,7 +295,7 @@ Resize(146) → CenterCrop(128) → ToTensor() → Normalize()
 
 ```text
 runs/5class/{A_mnv3s,B_mnv2,C_leafnet_msff,D_leafnet_msff_cbam,E_mnv3s_cbam}_seed42/
-├─ best.pt           # model_state, model_id, class_keys, cato_labels, num_classes, input_size, epoch, val_acc, val_f1, config
+├─ best.pt           # model_state, model_id, class_keys, flavia_labels, num_classes, input_size, epoch, val_acc, val_f1, config
 ├─ last.pt
 ├─ history.csv       # epoch,lr,train_loss,train_acc,val_loss,val_acc,val_f1,epoch_sec
 ├─ history.json
@@ -289,7 +306,7 @@ runs/5class/{A_mnv3s,B_mnv2,C_leafnet_msff,D_leafnet_msff_cbam,E_mnv3s_cbam}_see
 runs/all32/<run_id>/  # 后续全类，目录结构相同
 ```
 
-`class_keys`、`cato_labels`、`num_classes` 必须与对应注册表（`class_registry.json` 或 `class_registry_all32.json`）一致，网页加载时校验。
+`class_keys`、`flavia_labels`、`num_classes` 必须与对应注册表（`class_registry.json` 或 `class_registry_all32.json`）一致，网页加载时校验。
 
 ### 3.5 预计耗时
 
@@ -303,18 +320,20 @@ runs/all32/<run_id>/  # 后续全类，目录结构相同
 
 ```bash
 cd /c/Users/Voidkongbai/Desktop/DeepLearning
-# 1) 解析 cato、生成注册表和五类清单，同时生成 Flavia类别对照表.md
-"C:/Anaconda/envs/torch_env/python.exe" tools/build_dataset.py --cato data/cato.txt --leaves data/Leaves --classes 4,12,15,17,20 --subset 5class --out data/splits --registry data/class_registry.json --seed 42 --materialize --write-md
+# 1) 读取 §13 映射、生成注册表和五类清单（对照表已生成，无需 --write-md）
+"C:/Anaconda/envs/torch_env/python.exe" tools/build_dataset.py --leaves data/Leaves --classes 4,12,15,17,20 --subset 5class --out data/splits --registry data/class_registry.json --seed 42 --materialize
 # 2) 320px 缓存
 "C:/Anaconda/envs/torch_env/python.exe" tools/prepare_cache.py --src data/Leaves --dst data/cache/leaf_320 --long-edge 320
 # 3) 五类训练
 "C:/Anaconda/envs/torch_env/python.exe" -m src.train --models A B C D E --data data/splits/5class --registry data/class_registry.json --num-classes 5 --cache data/cache/leaf_320 --epochs 40 --batch-size 32 --seed 42
+# 4) 实景测试清单（791 张，只用于评测）
+"C:/Anaconda/envs/torch_env/python.exe" tools/build_dataset.py --real-dir data/leaf --subset real --out data/splits
 ```
 
 后续全 32 类沿用同一流程，只改三个参数：
 
 ```bash
-"C:/Anaconda/envs/torch_env/python.exe" tools/build_dataset.py --cato data/cato.txt --leaves data/Leaves --classes all --subset all32 --out data/splits --registry data/class_registry_all32.json --seed 42 --materialize
+"C:/Anaconda/envs/torch_env/python.exe" tools/build_dataset.py --leaves data/Leaves --classes all --subset all32 --out data/splits --registry data/class_registry_all32.json --seed 42 --materialize
 "C:/Anaconda/envs/torch_env/python.exe" -m src.train --models A B C D E --data data/splits/all32 --registry data/class_registry_all32.json --num-classes 32 --cache data/cache/leaf_320 --epochs 40 --batch-size 32 --seed 42
 ```
 
@@ -413,7 +432,7 @@ webapp/
 `ModelRegistry`：
 - 启动时读取 `data/class_registry.json`；若存在 `data/class_registry_all32.json` 也一并读取，扫描 `runs/{5class,all32}/*/best.pt`；
 - 只加载 A/B/C/D（E 仅用于消融，不进网页）；
-- 校验 checkpoint 的 `class_keys` / `cato_labels` / `num_classes` 与注册表一致；
+- 校验 checkpoint 的 `class_keys` / `flavia_labels` / `num_classes` 与注册表一致；
 - **支持两套模型**：`runs/5class/*` 与 `runs/all32/*`；网页按模型元数据自动切换类别数、Top-3/Top-5 和图例；
 - 每个模型保存 `model_id → (model, transform, metadata)`，CPU 推理。
 
@@ -470,7 +489,9 @@ webapp/
 
 ## 6. 校园实景照片流程（预留，不阻塞主线）
 
-目录：`data/campus/<key>/*.jpg`，5 个 key 与 cato 一致。建议每类至少 10–20 张，至少覆盖 2 个拍摄地点。
+目录：`data/campus/<key>/*.jpg`，5 个 key 与注册表一致（`cercis_chinensis`、`pittosporum_tobira`、`cinnamomum_camphora`、`osmanthus_fragrans`、`lagerstroemia_indica`）。建议每类至少 10–20 张，至少覆盖 2 个拍摄地点。
+
+> **现状**：`data/leaf/*_test/` 已有 791 张实景帧，只做跨域测试（§1.5）。若要用实景数据微调，先从这批帧中按视频来源划分 support/test（同一视频的帧不能跨 split），或补拍 `data/campus/`；不得把测试帧直接当训练集。
 
 - `tools/import_campus.py`：EXIF 校正、转 RGB、长边缩到 1024、JPEG q=90、去元数据；SHA-256 + dHash 去重；Laplacian 方差 < 30 的模糊图剔除；生成 contact sheet 供人工确认。
 - 划分：`data/splits/campus_support.csv` / `campus_test.csv`，每类 70/30 且 support 不超过 10 张；**绝不与 Flavia 的 train/val/test 混合**。
@@ -485,19 +506,24 @@ webapp/
 
 ```
 DeepLearning/
-├─ Flavia类别对照表.md         # 32 类校验/中文名/张数，给人看
+├─ plans.md                   # 本计划（唯一权威映射见 §13）
+├─ AGENTS.md / WORKLOG.md     # 协作规范 / 统一工作日志
 ├─ data/
 │  ├─ Leaves/                 # 原始 Flavia，只读
-│  ├─ cato.txt                # 32 类原始映射，保持不动
-│  ├─ class_registry.json     # 五类，从 cato 派生
+│  ├─ leaf/                   # 实景视频抽帧（5 类 *_test），只作测试
+│  ├─ test_preview/           # 抽帧预览、extract_stats.json、frame_quality.csv
+│  ├─ Flavia类别对照表.md      # 32 类校验/中文名/张数，给人看（已完成）
+│  ├─ class_map.json          # 32 类映射（§13 派生），程序唯一映射来源
+│  ├─ class_registry.json     # 五类，从 class_map 派生
 │  ├─ class_registry_all32.json # 后续全类（单独存放，不覆盖五类）
-│  ├─ zh_names.json           # cato_label → 中文名（从公开表提取一次）
+│  ├─ zh_names.json           # flavia_label → 中文名（从公开表提取一次）
 │  ├─ splits/
 │  │  ├─ 5class/              # 当前五类 train/val/test/all.csv
-│  │  └─ all32/               # 后续全 32 类
+│  │  ├─ all32/               # 后续全 32 类
+│  │  └─ real/                # 实景测试清单（791 张，只评测）
 │  ├─ dataset/                # --materialize 生成，人工检查用
 │  ├─ cache/leaf_320/         # 训练缓存
-│  └─ campus/<key>/           # 实景照片预留
+│  └─ campus/<key>/           # 后续实地拍摄预留
 ├─ src/
 │  ├─ __init__.py
 │  ├─ data.py                 # Dataset + build_eval_transform
@@ -516,6 +542,8 @@ DeepLearning/
 │  ├─ make_stress_test.py
 │  ├─ make_diagrams.py
 │  ├─ import_campus.py
+│  ├─ extract_frames.py       # 已存在，保留不动
+│  ├─ extract_test_frames.py  # 已存在，保留不动
 │  └─ verify_project.py
 ├─ webapp/                    # 见 5.1
 ├─ runs/{5class,all32}/<run_id>/
@@ -525,28 +553,35 @@ DeepLearning/
 执行顺序（建议按里程碑验收）：
 
 1. **环境**：安装 5 个缺失包；跑 `python -c "import sklearn, matplotlib, pandas, flask, tqdm"` 验证。
-2. **数据**：写 `cato.txt` → `build_dataset.py` → 检查 294/178/58/58、无交集 → `make_dataset_preview.py` 看 5 类图。
-3. **模型冒烟**：A 训练 1 epoch，确认 loss 有限、checkpoint 可加载、val acc > 20%。
-4. **全量训练**：A/B/C/D/E，40 epoch；记录每轮耗时。
-5. **评测与图表**：test + stress → 所有 `results/figures`、`results/tables`；检查中文标签。
-6. **网页**：启动 Flask → 上传 5 类测试图 → 摄像头实时/拍照 → Grad-CAM → 切换 A/B/C/D。
-7. **实景（可选）**：导入照片 → 微调 D → 跨域表；没有数据就跳过。
-8. **报告素材**：截图、曲线、消融表、环境与训练参数。
+2. **数据**：生成 `data/class_map.json` → `build_dataset.py` → 检查 294/178/58/58、无交集 → `make_dataset_preview.py` 看 5 类图。（分类校验已完成，无需再做）
+3. **实景清单**：`build_dataset.py --real-dir data/leaf --subset real` → 检查 791 行、类别映射正确。
+4. **模型冒烟**：A 训练 1 epoch，确认 loss 有限、checkpoint 可加载、val acc > 20%。
+5. **全量训练**：A/B/C/D/E，40 epoch；记录每轮耗时。
+6. **评测与图表**：test + stress + real → 所有 `results/figures`、`results/tables`；检查中文标签。
+7. **网页**：启动 Flask → 上传 5 类测试图 → 摄像头实时/拍照 → Grad-CAM → 切换 A/B/C/D。
+8. **实景微调（可选）**：有 campus/support 数据才做；只有 `data/leaf` 测试帧时跳过，直接做跨域评测。
+9. **报告素材**：截图、曲线、消融表、环境与训练参数。
 
 ---
 
 ## 8. 验证清单
 
-- [ ] `cato.txt` 能解析出 32 类；表头/空行/URL 缺失不会导致解析失败；五类子集按 label 4/12/15/17/20 正确选出。
-- [ ] 选中图片恰好 294 张，train/val/test = 178/58/58，三集合两两不相交且并集完整。
-- [ ] `cato.txt` 的 32 个 label、32 个区间与公开表逐项一致；`Flavia类别对照表.md` 已生成且 32 行齐全。
-- [ ] 运行前后 `cato.txt` 的 SHA-256 不变（脚本只读，不改写原始映射）。
-- [ ] `class_registry.json` 的 `cato_label/key/zh_name/range` 与 cato + 公开表一致；五类子集 `py_label` 为 0–4。
-- [ ] checkpoint 内 `class_keys`、`cato_labels`、`num_classes` 与注册表一致。
+> 分类校验（编号 / 区间 / 对照表 / 实景抽帧）已于 2026-10-19 完成，对应条目已勾选；其余条目随执行进度勾选。
+
+- [x] Flavia 32 类的编号与区间已核对：32/32 一致，无需重新编码 — 2026-10-19
+- [x] `data/Flavia类别对照表.md` 已生成且 32 行齐全（1798 张） — 2026-10-19
+- [x] `data/Leaves` 的 1798 张图片可按编号区间唯一归属 32 类；五类 4/12/15/17/20 共 294 张 — 2026-10-19
+- [x] `data/leaf` 实景帧已抽取并去重：5 类共 791 张（160/163/155/145/168） — 2026-10-19
+- [ ] `data/class_map.json` 与 §13、`data/Flavia类别对照表.md` 逐项一致（32 类、编号、区间、名称）。
+- [ ] 五类清单恰好 294 张，train/val/test = 178/58/58，三集合两两不相交且并集完整。
+- [ ] `class_registry.json` 的 `flavia_label/key/zh_name/range` 与 `class_map.json` + 公开表一致；五类子集 `py_label` 为 0–4。
+- [ ] checkpoint 内 `class_keys`、`flavia_labels`、`num_classes` 与注册表一致。
 - [ ] `--classes all` 生成 32 类清单：总数 1798，train/val/test = 1082/358/358。
+- [ ] 实景清单 `data/splits/real/all.csv` 共 791 行，类别映射正确，且未混入 train/val。
 - [ ] 每个模型 forward 输出 `[1, num_classes]`（五类 `[1,5]`，全类 `[1,32]`）；参数量与 §2 表格一致；预训练权重确实加载（missing keys 仅新模块/头）。
 - [ ] A 冒烟训练 1 epoch 正常；全量训练每个 run 有 `best.pt`、`history.csv`、`train.log`。
 - [ ] test 预测 CSV 五类每个模型 58 行、全类每个模型 358 行，各类概率和为 1。
+- [ ] 实景评测 CSV 每个模型 791 行，各类概率和为 1，A/B/C/D 顺序一致。
 - [ ] 报告所需图表全部生成，中文无方框，A/B/C/D 顺序一致。
 - [ ] 网页能加载 A/B/C/D；上传、拍照、实时、模型切换、Top-3、Grad-CAM 均可用。
 - [ ] 摄像头轮询不重叠；切后台暂停；拒绝权限时有提示且上传仍可用。
@@ -570,10 +605,11 @@ DeepLearning/
 | 摄像头打不开 | 只用 localhost；检查 Windows 相机权限/占用；保留上传入口 |
 | 重复图泄漏 | SHA-256 + dHash；跨类重复直接中止 |
 | Grad-CAM 挂错层 | `get_gradcam_layer()` 集中注册 + 每次 shape 断言；hook 在 finally 移除 |
-| cato label 不连续（缺 13） | 不直接把 cato label 当 PyTorch 标签；统一用 registry 的 `py_label` 映射 |
-| 扩类后旧 checkpoint 标签错位 | checkpoint 存 `class_keys`/`cato_labels`/`num_classes`，网页和评测加载时校验 |
+| Flavia 编号不连续（缺 13） | 不直接把编号当 PyTorch 标签；统一用 registry 的 `py_label` 映射 |
+| 扩类后旧 checkpoint 标签错位 | checkpoint 存 `class_keys`/`flavia_labels`/`num_classes`，网页和评测加载时校验 |
 | 32 类混淆矩阵太密 | 无标注热图 + `table4_4_top_confusions.csv`；报告正文仍用五类结果 |
-| 训练后改 cato 顺序 | checkpoint 存 `class_keys`，网页加载时校验并拒绝不一致 |
+| 训练后改 `--classes` 顺序 | checkpoint 存 `class_keys`，网页加载时校验并拒绝不一致 |
+| 实景帧与视频源高度相关 | 只做整体跨域测试，不随机拆分、不进入训练；报告单列说明 |
 
 ---
 
@@ -581,13 +617,13 @@ DeepLearning/
 
 | 报告章节 | 本方案产出 |
 |---|---|
-| 2.1 数据集设计 | Flavia 5 类 294 张；1600×1200 JPEG；6:2:2 分层划分；`fig2_1_dataset_samples.png`；划分与清洗说明 |
+| 2.1 数据集设计 | Flavia 5 类 294 张；1600×1200 JPEG；6:2:2 分层划分；`fig2_1_dataset_samples.png`；32 类映射与编号区间校验（`data/Flavia类别对照表.md`） |
 | 3.1 基础网络 | MobileNetV3-Small 结构；`fig3_1_leafnet_architecture.png` |
 | 3.2 改进 | 3.2.1 MSFF、3.2.2 CBAM；3.2.3 可写轻量分类头 + 差分学习率 + 强增强（模板的三小节是示例，两网络模块+训练策略足够） |
 | 3.3 最终模型 | LeafNet-MSC 结构图与数据流 |
 | 4.1 环境 | Windows 11、Ryzen 7 7840HS、15.2GB、CPU PyTorch 2.5.1、Python 3.10.21 |
 | 4.2 训练过程 | §3.3 参数表 + `training_summary.csv` 的每轮耗时/曲线 |
-| 4.3 训练结果 | `fig4_1`–`fig4_6`、测试 loss/acc 表 |
+| 4.3 训练结果 | `fig4_1`–`fig4_6`、测试 loss/acc 表、`table4_5_real_scene.csv`（791 张实景跨域） |
 | 4.4 消融 | A / E(+CBAM) / C(+MSFF) / D(两者) + `fig4_7`，并给出交互项 `(D−C)−(E−A)` |
 | 4.5 可视化网站 | §5 网页 + 4 张摄像头 + 5 张上传截图 |
 | 5.1/5.2 收获与展望 | 域差异、小测试集、压力测试、实景微调；后续扩到 32 类的方案与初步结果 |
@@ -601,8 +637,9 @@ DeepLearning/
 
 | 阶段 | 预计 |
 |---|---|
-| cato 校对 + 生成 `Flavia类别对照表.md` + 注册表 | 20–30 分钟 |
+| 分类校验 + 生成 `data/Flavia类别对照表.md` | 0（已完成） |
 | 依赖 + 五类数据构建 + 预览 | 30–45 分钟 |
+| 实景清单 + 跨域评测 | 20–30 分钟 |
 | 模型/训练/评测代码与调试 | 3–5 小时 |
 | 五类 5 个模型训练 | 15–30 分钟（CPU） |
 | 图表与消融 | 30–60 分钟 |
@@ -622,13 +659,13 @@ DeepLearning/
 ### 12.1 数据
 
 ```bash
-"C:/Anaconda/envs/torch_env/python.exe" tools/build_dataset.py --cato data/cato.txt --leaves data/Leaves --classes all --subset all32 --out data/splits --registry data/class_registry_all32.json --seed 42 --materialize
+"C:/Anaconda/envs/torch_env/python.exe" tools/build_dataset.py --leaves data/Leaves --classes all --subset all32 --out data/splits --registry data/class_registry_all32.json --seed 42 --materialize
 ```
 
-- 类别：cato label 1–12、14–33，共 32 类；
+- 类别：Flavia 编号 1–12、14–33，共 32 类；
 - 图片：1798 张（每类 46–73 张）；
 - 划分：**train/val/test = 1082 / 358 / 358**（6:2:2，按类分层）；
-- 因为划分种子是 `42 + cato_label`，**五类的 train/val/test 与 all32 中对应类别完全一致**，两份结果可以直接对比；五类 test 是 all32 test 的子集；
+- 因为划分种子是 `42 + flavia_label`，**五类的 train/val/test 与 all32 中对应类别完全一致**，两份结果可以直接对比；五类 test 是 all32 test 的子集；
 - 生成 `data/splits/all32/` 和 `data/class_registry_all32.json`，**不覆盖**五类的注册表和清单。
 
 ### 12.2 模型与训练
@@ -652,7 +689,7 @@ DeepLearning/
 
 - 指标：top-1、top-5、macro-F1、每类 recall；test 358 张，1 张 = 0.28 个百分点；
 - 混淆矩阵 32×32 会很密：`fig4_5_confusion_matrix_all32.png` 用无数字标注的热图，另出 `table4_4_top_confusions.csv`（最容易混淆的 10 对类别）；
-- 额外做一次 **子集评测**：把 all32 模型在五类 test 子集上的表现，与五类专用模型对比，写进“扩类后的精度变化”；**按 `cato_label` 对齐，不能按 `py_label`**（两套标签顺序不同）；
+- 额外做一次 **子集评测**：把 all32 模型在五类 test 子集上的表现，与五类专用模型对比，写进“扩类后的精度变化”；**按 `flavia_label` 对齐，不能按 `py_label`**（两套标签顺序不同）；
 - 当前报告主体仍用五类结果；all32 的结果放在 5.2“项目展望”或附录，避免冲淡 4.3/4.4 的主线。
 
 ### 12.4 网页
@@ -664,24 +701,24 @@ DeepLearning/
 
 ### 12.5 继续增加 Flavia 之外的种类
 
-- **仍是 Flavia 编号体系**：在 `cato.txt` 追加新行（新 label、学名、英文名、区间），把图片按编号放进 `data/Leaves`，重跑 `build_dataset.py --classes all`；
-- **校园实景新物种**（没有 Flavia 编号）：不要硬塞进 cato 的 filename 区间；在 `data/campus/<key>/` 下建类别，给注册表加 `source: campus` 条目，用独立的 `campus_support.csv` / `campus_test.csv` 微调分类头；与 Flavia 32 类模型分开报告；
+- **仍是 Flavia 编号体系**：在 `data/class_map.json` 与本文 §13 追加新条目（新编号、学名、英文名、区间），把图片按编号放进 `data/Leaves`，重跑 `build_dataset.py --classes all`；
+- **校园实景新物种**（没有 Flavia 编号）：不要硬塞进 Flavia 的 filename 区间；在 `data/campus/<key>/` 下建类别，给注册表加 `source: campus` 条目，用独立的 `campus_support.csv` / `campus_test.csv` 微调分类头；与 Flavia 32 类模型分开报告；
 - 每次扩类都保留旧注册表/旧 checkpoint，网页按 `class_keys` 校验，避免新旧标签错位。
 
 ---
 
-## 13. 附录：Flavia 32 类对照表（将写入 `Flavia类别对照表.md`）
+## 13. 附录：Flavia 32 类映射（权威来源，已同步到 `data/Flavia类别对照表.md`）
 
-> 学名以 cato 原文为准；中文名来自公开表；“备注”标出差异。实际张数已按 `data/Leaves` 统计。
+> 本表现已作为项目唯一的类别映射来源：`data/class_map.json`、`data/class_registry.json`、`data/splits/*` 与网页都从这里派生。学名沿用原 Flavia 类别表记录；中文名来自公开表；“备注”标出历史差异。实际张数已按 `data/Leaves` 统计。
 
-| cato label | key | 中文名 | 学名（cato） | 英文名 | 区间 | 张数 | 备注 |
+| Flavia 编号 | key | 中文名 | 学名 | 英文名 | 区间 | 张数 | 备注 |
 |---:|---|---|---|---|---|---:|---|
 | 1 | phyllostachys_edulis | 毛竹 | Phyllostachys edulis (Carr.) Houz. | pubescent bamboo | 1001-1059 | 57 | |
 | 2 | aesculus_chinensis | 七叶树 | Aesculus chinensis | Chinese horse chestnut | 1060-1122 | 57 | |
 | 3 | berberis_anhweiensis | 安徽小檗 | Berberis anhweiensis Ahrendt | Anhui Barberry | 1552-1616 | 62 | |
 | 4 | cercis_chinensis | 紫荆 | Cercis chinensis | Chinese redbud | 1123-1194 | 67 | 五类子集 |
 | 5 | indigofera_tinctoria | 木蓝 | Indigofera tinctoria L. | true indigo | 1195-1267 | 71 | |
-| 6 | acer_palmatum | 鸡爪槭 | Acer Palmatum | Japanese maple | 1268-1323 | 54 | cato 大写 P |
+| 6 | acer_palmatum | 鸡爪槭 | Acer Palmatum | Japanese maple | 1268-1323 | 54 | 学名大写 P（按原表保留） |
 | 7 | phoebe_nanmu | 楠木 | Phoebe nanmu (Oliv.) Gamble | Nanmu | 1324-1385 | 58 | |
 | 8 | kalopanax_septemlobus | 刺楸 | Kalopanax septemlobus (Thunb. ex A.Murr.) Koidz. | castor aralia | 1386-1437 | 51 | |
 | 9 | cinnamomum_japonicum | 天竺桂 | Cinnamomum japonicum Sieb. | Chinese cinnamon | 1497-1551 | 53 | |
@@ -699,14 +736,14 @@ DeepLearning/
 | 22 | podocarpus_macrophyllus | 罗汉松 | Podocarpus macrophyllus (Thunb.) Sweet | yew plum pine | 2616-2675 | 57 | |
 | 23 | prunus_serrulata | 日本晚樱 | Prunus serrulata Lindl. var. lannesiana auct. | Japanese Flowering Cherry | 3001-3055 | 53 | |
 | 24 | ligustrum_lucidum | 女贞 | Ligustrum lucidum Ait. f. | Glossy Privet | 3056-3110 | 53 | |
-| 25 | toona_sinensis | 香椿 | Tonna sinensis M. Roem. | Chinese Toon | 3111-3175 | 63 | cato 拼写 Tonna；正确 Toona；key 用正确拼写 |
+| 25 | toona_sinensis | 香椿 | Tonna sinensis M. Roem. | Chinese Toon | 3111-3175 | 63 | 原表拼写 Tonna；正确 Toona；key 用正确拼写 |
 | 26 | prunus_persica | 桃 | Prunus persica (L.) Batsch | peach | 3176-3229 | 49 | |
 | 27 | manglietia_fordiana | 木莲 | Manglietia fordiana Oliv. | Ford Woodlotus | 3230-3281 | 47 | |
 | 28 | acer_buergerianum | 三角枫 | Acer buergerianum Miq. | trident maple | 3282-3334 | 47 | |
 | 29 | mahonia_bealei | 阔叶十大功劳 | Mahonia bealei (Fortune) Carr. | Beale's barberry | 3335-3389 | 54 | |
 | 30 | magnolia_grandiflora | 广玉兰 | Magnolia grandiflora L. | southern magnolia | 3390-3446 | 53 | |
-| 31 | populus_canadensis | 加杨 | Populus ×canadensis Moench | Canadian poplar | 3447-3510 | 59 | cato 用 × |
+| 31 | populus_canadensis | 加杨 | Populus ×canadensis Moench | Canadian poplar | 3447-3510 | 59 | 学名用 × |
 | 32 | liriodendron_chinense | 鹅掌楸 | Liriodendron chinense (Hemsl.) Sarg. | Chinese tulip tree | 3511-3563 | 51 | |
 | 33 | citrus_reticulata | 柑橘 | Citrus reticulata Blanco | tangerine | 3566-3621 | 51 | |
 
-**校验结论**：32/32 label 一致；32/32 区间一致；无需按公开表重新编码。差异仅为学名作者缩写/大小写、英文名同义词和 cato 第 25 类的 `Tonna/Toona` 拼写。按“以 cato 为标准”的原则，label 和区间不改；展示表保留 cato 原文并在备注注明。
+**校验结论（已完成）**：32/32 编号一致；32/32 区间一致；无需按公开表重新编码。差异仅为学名作者缩写/大小写、英文名同义词和第 25 类的 `Tonna/Toona` 拼写。编号和区间保持本表不变；展示表保留原表写法并在备注注明。**本表是项目唯一权威映射，不再依赖任何外部 cato 文件。**
