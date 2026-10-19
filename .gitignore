@@ -1,0 +1,24 @@
+# 原始数据与生成物（体积大，不入库）
+data/Leaves/
+data/leaf/
+data/test_preview/
+data/dataset/
+data/cache/
+runs/
+
+# 模型权重与预测产物
+*.pt
+*.pth
+*.onnx
+results/predictions/
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# 系统 / Office 临时文件
+~$*
+Thumbs.db
+.DS_Store
