@@ -162,3 +162,30 @@
 - 验证结论: 通过（val acc 39.66% > 20%）
 - 提交: `feat(train): 实现训练流程并通过 A 冒烟`
 - 遗留问题 / 下一步: 启动 A/B/C/D/E 40 epoch 全量训练（`--num-workers 0`）
+
+---
+
+## [2026-10-19 13:55] T3.1 + T3.2 五模型 40 epoch 全量训练
+
+- 执行代理: 主代理（启动与验证）
+- 目标: 完成 A/B/C/D/E 五类训练，产出可供评测与报告的 checkpoint
+- 首次训练（patience=10）发现的问题: D 在 warmup 后 val F1 回落，best 锁定在 epoch 3，13 epoch 即早停（test acc 89.66%）；其余模型正常。归档在 `runs/_archive_patience10/`
+- 处理:
+  - 将五模型统一改为 `--patience 20` 重跑，保证协议一致；`plans.md §3.3` 已同步说明
+  - 性能配置 `--num-workers 0`（Windows 4 worker 使每 epoch 从约 2s 劣化到 42s）
+- 最终结果（seed=42，patience=20，均训练 40 epoch）:
+
+| 模型 | best epoch | val acc | val F1 | test acc | test macro-F1 | test CE | top-3 |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| A_mnv3s | 40 | 1.0000 | 1.0000 | 0.9828 | 0.9831 | 0.1713 | 0.9828 |
+| B_mnv2 | 25 | 1.0000 | 1.0000 | 1.0000 | 1.0000 | 0.0963 | 1.0000 |
+| C_leafnet_msff | 25 | 1.0000 | 1.0000 | 1.0000 | 1.0000 | 0.1380 | 1.0000 |
+| D_leafnet_msff_cbam | 22 | 1.0000 | 1.0000 | 1.0000 | 1.0000 | 0.1328 | 1.0000 |
+| E_mnv3s_cbam | 40 | 1.0000 | 1.0000 | 0.9828 | 0.9831 | 0.1546 | 1.0000 |
+
+- 命令与结果:
+  - `python -m src.train --models A B C D E ... --epochs 40 --patience 20 --num-workers 0` → exit 0
+  - 主代理逐 run 校验：7 个产物齐全、history 40 行无 NaN、checkpoint 的 class_keys/flavia_labels/num_classes 与注册表一致、test n=58、topk_k=3、train.log 无 ERROR/Traceback → **ALL PASS**
+- 验证结论: 通过。五类任务过于容易，A/B/C/D 在干净 test 上已接近饱和；模型差异需靠后续压力测试与实景测试区分（plans §4.3 已预判）
+- 提交: `feat(train): 完成五模型 40 epoch 全量训练`
+- 遗留问题 / 下一步: 实现 `src/evaluate.py` 与报告图表；压力测试 + 791 张实景跨域评测

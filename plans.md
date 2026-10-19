@@ -282,7 +282,7 @@ Resize(146) → CenterCrop(128) → ToTensor() → Normalize()
 | 损失 | CrossEntropyLoss(label_smoothing=0.1) |
 | 优化器 | AdamW；backbone lr=1e-4，新模块/分类头 lr=1e-3；weight_decay=0.02 |
 | 调度 | 3 epoch 线性 warmup + cosine 衰减到 1e-5 |
-| 轮数 | 40，early stopping patience=10（监控 val macro-F1，平局看 val loss） |
+| 轮数 | 40，early stopping patience=20（监控 val macro-F1，平局看 val loss；首轮 patience=10 时 D 在 warmup 后 F1 回落被过早停止，五模型统一改为 20） |
 | 其他 | dropout 0.2、梯度裁剪 5.0、seed=42 |
 | CPU | `torch.set_num_threads(8)`，DataLoader `num_workers=4`（Windows 异常时回退 0） |
 | 混合精度 | bf16 开关默认关闭（实测本机不快） |
@@ -575,11 +575,11 @@ DeepLearning/
 - [ ] `data/class_map.json` 与 §13、`data/Flavia类别对照表.md` 逐项一致（32 类、编号、区间、名称）。
 - [ ] 五类清单恰好 294 张，train/val/test = 178/58/58，三集合两两不相交且并集完整。
 - [ ] `class_registry.json` 的 `flavia_label/key/zh_name/range` 与 `class_map.json` + 公开表一致；五类子集 `py_label` 为 0–4。
-- [ ] checkpoint 内 `class_keys`、`flavia_labels`、`num_classes` 与注册表一致。
+- [x] checkpoint 内 `class_keys`、`flavia_labels`、`num_classes` 与注册表一致 — 2026-10-19
 - [ ] `--classes all` 生成 32 类清单：总数 1798，train/val/test = 1082/358/358。
 - [ ] 实景清单 `data/splits/real/all.csv` 共 791 行，类别映射正确，且未混入 train/val。
-- [ ] 每个模型 forward 输出 `[1, num_classes]`（五类 `[1,5]`，全类 `[1,32]`）；参数量与 §2 表格一致；预训练权重确实加载（missing keys 仅新模块/头）。
-- [ ] A 冒烟训练 1 epoch 正常；全量训练每个 run 有 `best.pt`、`history.csv`、`train.log`。
+- [x] 每个模型 forward 输出 `[1, num_classes]`（五类 `[1,5]`，全类 `[1,32]`）；参数量与 §2 表格一致；预训练权重确实加载（missing keys 仅新模块/头）— 2026-10-19
+- [x] A 冒烟训练 1 epoch 正常；全量训练每个 run 有 `best.pt`、`history.csv`、`train.log` — 2026-10-19
 - [ ] test 预测 CSV 五类每个模型 58 行、全类每个模型 358 行，各类概率和为 1。
 - [ ] 实景评测 CSV 每个模型 791 行，各类概率和为 1，A/B/C/D 顺序一致。
 - [ ] 报告所需图表全部生成，中文无方框，A/B/C/D 顺序一致。
@@ -773,5 +773,5 @@ DeepLearning/
 
 ### 14.3 全量训练
 
-- [ ] T3.1 五类 A/B/C/D/E 40 epoch 全量训练完成
-- [ ] T3.2 每个 run 的 `best.pt` / `history.csv` / `train.log` / `test_metrics.json` 校验通过
+- [x] T3.1 五类 A/B/C/D/E 40 epoch 全量训练完成 — 2026-10-19（patience=20）
+- [x] T3.2 每个 run 的 `best.pt` / `history.csv` / `train.log` / `test_metrics.json` 校验通过 — 2026-10-19
