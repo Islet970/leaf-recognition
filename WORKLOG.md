@@ -379,3 +379,17 @@
   6. E3b：`evaluate_live.py --runs runs/all32 --registry data/class_registry_all32.json --manifest data/splits/live_all32/test.csv --image-root data/leaf --out pic/spe-train-live-test-all --tag test`
 - 会话 fork: `claude --continue --fork-session` 或 `claude --resume ed29ac0f-57fc-4e00-85d5-ed04860e092b --fork-session`
 - 提交: `docs(log): 记录训练暂停点与恢复步骤`
+
+---
+
+## [2026-10-19 17:55] 恢复执行 T5.3 / T5.5
+
+- 执行代理: 主代理
+- 目标: 重启后继续 E2 与 E3a 训练
+- 状态确认: 无残留 Python 训练进程；`runs/live5` 与 `runs/all32` 的部分产物将被重跑覆盖
+- 命令:
+  - E2：`src.train --models A B C D --data data/splits/live5 --image-root data/leaf --registry data/class_registry.json --num-classes 5 --epochs 40 --patience 20 --output runs/live5 --num-workers 0 --threads 8`
+  - E3a：`src.train --models A B C D --data data/splits/all32 --registry data/class_registry_all32.json --num-classes 32 --cache data/cache/leaf_320_all32 --epochs 40 --patience 20 --output runs/all32 --num-workers 0 --threads 8`
+- 验证结论: 两个训练均已启动（后台运行）
+- 提交: 本条日志随下一步结果一并提交
+- 遗留问题 / 下一步: E2 完成后生成 `pic/spelive-train-test/` 图；E3a 完成后生成 `pic/spec-train-test-all/` 并执行 E3b
