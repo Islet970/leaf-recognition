@@ -126,3 +126,20 @@
 - 验证结论: 通过
 - 提交: `feat(data): 构建五类划分与实景测试清单`
 - 遗留问题 / 下一步: 实景清单 `filename` 为相对路径（如 `cercis_test/leaf01_000000.jpg`），后续评测用 `data/leaf/<filename>` 拼接
+
+---
+
+## [2026-10-19 13:58] T1.5 生成 320px 训练缓存
+
+- 执行代理: 子代理（编码，opus / medium）+ 主代理复核
+- 目标: 把五类 294 张原图缩到长边 320，降低 CPU 每轮解码开销
+- 改动:
+  - 新增 `tools/prepare_cache.py`
+  - 生成 `data/cache/leaf_320/*.jpg`（294 张，已忽略，不入库）
+- 命令与结果:
+  - `python tools/prepare_cache.py --src data/Leaves --dst data/cache/leaf_320 --long-edge 320 --manifest data/splits/5class/all.csv` → 处理 294，跳过 0，失败 0，耗时 16.00s
+  - 主代理复核：缓存 294 张；随机抽 5 张均为 320×240 RGB；全部长边 = 320
+  - 再运行一次 → 处理 0、跳过 294，幂等性通过
+- 验证结论: 通过（数据预览图 `fig2_1` 尚未生成，留待报告阶段）
+- 提交: `feat(data): 新增 320px 图像缓存工具`
+- 遗留问题 / 下一步: T2.3 训练脚本完成后先审查，再跑 A 冒烟
