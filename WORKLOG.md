@@ -428,3 +428,33 @@
 - 验证结论: 通过；主代理目视检查 4 张关键图（样本 3×4、测试 acc、训练 loss、困难 acc/loss），中文与数值正确
 - 提交: `feat(train): 完成 E2 实景训练与图表`
 - 遗留问题 / 下一步: E3a 32 类训练进行中；完成后生成 `pic/spec-train-test-all/` 并做 E3b
+
+---
+
+## [2026-10-19 22:05] T5.5 + T5.6 + T5.8 完成 32 类训练与实景子集评测
+
+- 执行代理: 主代理（训练运行、图表生成与验证）
+- 目标: 完成 E3a（32 类白底训练/测试）与 E3b（32 类模型在 5 类实景子集上的测试），并做全项目产物校验
+- E3a 结果（Leaves test 358 张，32 类）:
+
+| 模型 | best epoch | val acc | val F1 | test acc | test macro-F1 | test CE | top-5 |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| A_mnv3s | 26 | 0.9916 | 0.9911 | 0.9860 | 0.9863 | 0.1575 | 1.0000 |
+| B_mnv2 | 24 | 0.9972 | 0.9968 | **1.0000** | **1.0000** | **0.1226** | 1.0000 |
+| C_leafnet_msff | 30 | 0.9860 | 0.9850 | 0.9860 | 0.9861 | 0.1601 | 1.0000 |
+| D_leafnet_msff_cbam | 19 | 0.9916 | 0.9911 | 0.9860 | 0.9862 | 0.1417 | 1.0000 |
+
+- E3b 结果（32 类模型 → 5 类实景子集，标签按 32 类注册表对齐）:
+  - 普通实景 n=432：A 2.08% / B **4.40%** / C 3.70% / D 2.31%（随机基线约 3.1%）
+  - 困难实景 n=227：A 0.00% / B **2.64%** / C 0.44% / D 0.00%
+  - 结论：32 类白底模型在实景上接近随机，跨域迁移几乎失败；与 E1（5 类白底模型 35–51%）和 E2（实景训练 B 86.54% / 困难 45.71%）形成清晰对比。
+- 产物:
+  - `runs/all32/{A,B,C,D}_*_seed42/`（各 7 个文件）
+  - `pic/spec-train-test-all/` 5 张标准图（已覆盖占位副本）
+  - `pic/spe-train-live-test-all/{test_ABCD,test_hard_ABCD}.png` + `metrics_test.csv` / `metrics_test_hard.csv`
+- 验证:
+  - `runs/live5` 与 `runs/all32` 各 4 个 run：7 个产物齐全、history 无 NaN、checkpoint 的 class_keys/num_classes 与注册表一致、test n=52/358、topk_k=3/5 → **全部 PASS**
+  - 五套图片目录：`pic/spec-train-test` 5、`spec-train-test-all` 5、`spelive-train-test` 6、`spe-train-live-test` 2、`spe-train-live-test-all` 2 → **全部存在且非空**
+  - 主代理目视检查 E3a 样本网格/准确率柱状、E3b 普通/困难组合图，中文与数值正确
+- 提交: `feat(train): 完成 32 类训练与实景子集评测`
+- 遗留问题 / 下一步: 报告撰写与网页（Grad-CAM、摄像头、模型切换）；E3c 已按用户确认取消

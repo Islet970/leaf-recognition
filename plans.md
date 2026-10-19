@@ -620,13 +620,13 @@ DeepLearning/
 - [ ] 五类清单恰好 294 张，train/val/test = 178/58/58，三集合两两不相交且并集完整。
 - [ ] `class_registry.json` 的 `flavia_label/key/zh_name/range` 与 `class_map.json` + 公开表一致；五类子集 `py_label` 为 0–4。
 - [x] checkpoint 内 `class_keys`、`flavia_labels`、`num_classes` 与注册表一致 — 2026-10-19
-- [ ] `--classes all` 生成 32 类清单：总数 1798，train/val/test = 1082/358/358。
-- [ ] 实景清单生成：live_all（432/227）、live5（301/79/52 + hard_test 35）、live_all32；类别映射正确、无跨 split 泄漏。
+- [x] `--classes all` 生成 32 类清单：总数 1798，train/val/test = 1082/358/358 — 2026-10-19
+- [x] 实景清单生成：live_all（432/227）、live5（301/79/52 + hard_test 35）、live_all32；类别映射正确、无跨 split 泄漏 — 2026-10-19
 - [x] 每个模型 forward 输出 `[1, num_classes]`（五类 `[1,5]`，全类 `[1,32]`）；参数量与 §2 表格一致；预训练权重确实加载（missing keys 仅新模块/头）— 2026-10-19
 - [x] A 冒烟训练 1 epoch 正常；全量训练每个 run 有 `best.pt`、`history.csv`、`train.log` — 2026-10-19
 - [ ] test 预测 CSV 五类每个模型 58 行、全类每个模型 358 行，各类概率和为 1。
-- [ ] E1 实景评测每个模型 432 / 227 行；E2 每个模型 52 / 35 行；E3b 使用 32 类标签；A/B/C/D 顺序一致。
-- [ ] E1 / E2 / E3a / E3b 图表全部生成到指定目录；E3c 不执行（用户确认）。
+- [x] E1 实景评测每个模型 432 / 227 行；E2 每个模型 52 / 35 行；E3b 使用 32 类标签；A/B/C/D 顺序一致 — 2026-10-19
+- [x] E1 / E2 / E3a / E3b 图表全部生成到指定目录；E3c 不执行（用户确认）— 2026-10-19
 - [ ] 报告所需图表全部生成，中文无方框，A/B/C/D 顺序一致。
 - [ ] 网页能加载 A/B/C/D；上传、拍照、实时、模型切换、Top-3、Grad-CAM 均可用。
 - [ ] 摄像头轮询不重叠；切后台暂停；拒绝权限时有提示且上传仍可用。
@@ -831,10 +831,10 @@ DeepLearning/
 - [x] T5.2 E1：W5 五类白底模型 → `_test` / `_test_hard`，输出 `pic/spe-train-live-test/` 两张组合柱状图 — 2026-10-19
 - [x] T5.3 E2：L5 实景训练（leaf01-03 / leaf05 / leaf04，A/B/C/D）→ 标准图 + 困难测试，输出 `pic/spelive-train-test/` — 2026-10-19
 - [x] T5.4 生成 all32 数据/注册表/缓存（1798 → 1082/358/358）— 2026-10-19
-- [ ] T5.5 E3a：W32 训练（A/B/C/D）→ 白底 test 标准图，输出 `pic/spec-train-test-all/`
-- [ ] T5.6 E3b：W32 → 实景 5 类子集，输出 `pic/spe-train-live-test-all/` 两张组合柱状图
+- [x] T5.5 E3a：W32 训练（A/B/C/D）→ 白底 test 标准图，输出 `pic/spec-train-test-all/` — 2026-10-19
+- [x] T5.6 E3b：W32 → 实景 5 类子集，输出 `pic/spe-train-live-test-all/` 两张组合柱状图 — 2026-10-19
 - [x] T5.7 E3c 不执行（用户确认：其它种类实景不做演示）
-- [ ] T5.8 全部产物校验、WORKLOG 记录与 git 提交
+- [x] T5.8 全部产物校验、WORKLOG 记录与 git 提交 — 2026-10-19
 
 ---
 
@@ -923,7 +923,7 @@ DeepLearning/
 - `pic/spelive-train-test/fig4_3_test_loss_bar.png`
 - `pic/spelive-train-test/fig4_4_test_acc_bar.png`
 - `pic/spelive-train-test/fig4_6_sample_predictions_ABCD.png`
-- `pic/spelive-train-test/fig4_3_test_loss_bar_hard.png`、`fig4_4_test_acc_bar_hard.png`
+- `pic/spelive-train-test/test_hard_ABCD.png`（困难测试 acc+loss 组合图）
 - `pic/spelive-train-test/metrics_test.csv`、`metrics_test_hard.csv`
 
 **E3a（标准 5 张，白底测试）**：
@@ -1045,11 +1045,11 @@ DeepLearning/
 
 ### 15.8 验收标准
 
-- [ ] T5.1 三个实景清单生成，计数与 §15.2 一致，无跨 split 泄漏；
-- [ ] E1：`pic/spe-train-live-test/` 下 `test_ABCD.png`、`test_hard_ABCD.png` 存在且非空，四模型 acc/loss 数值正确；
-- [ ] E2：`runs/live5` 四个模型各有 7 个产物；`pic/spelive-train-test/` 下 5 张标准图 + 2 张困难测试图存在且非空；样本网格 3×4；
-- [ ] E3a：`runs/all32` 四个模型各有 7 个产物；`pic/spec-train-test-all/` 下 5 张标准图存在且非空；
-- [ ] E3b：`pic/spe-train-live-test-all/` 下 2 张图存在且非空；报告明确“实景覆盖 5/32 类”；
+- [x] T5.1 三个实景清单生成，计数与 §15.2 一致，无跨 split 泄漏；
+- [x] E1：`pic/spe-train-live-test/` 下 `test_ABCD.png`、`test_hard_ABCD.png` 存在且非空，四模型 acc/loss 数值正确；
+- [x] E2：`runs/live5` 四个模型各有 7 个产物；`pic/spelive-train-test/` 下 5 张标准图 + 1 张困难测试组合图存在且非空；样本网格 3×4；
+- [x] E3a：`runs/all32` 四个模型各有 7 个产物；`pic/spec-train-test-all/` 下 5 张标准图存在且非空；
+- [x] E3b：`pic/spe-train-live-test-all/` 下 2 张图存在且非空；报告明确“实景覆盖 5/32 类”；
 - [x] E3c：不执行（用户确认其它种类实景不做演示）；
-- [ ] 所有图的中文正常、四模型顺序一致、数值与 metrics CSV 对得上；
-- [ ] `plans.md` 勾选、`WORKLOG.md` 记录、git 提交完成。
+- [x] 所有图的中文正常、四模型顺序一致、数值与 metrics CSV 对得上；
+- [x] `plans.md` 勾选、`WORKLOG.md` 记录、git 提交完成。
