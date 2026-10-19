@@ -830,7 +830,7 @@ DeepLearning/
 - [x] T5.1 生成实景清单（live_all / live5 / live_all32）并做视频级泄漏检查 — 2026-10-19
 - [ ] T5.2 E1：W5 五类白底模型 → `_test` / `_test_hard`，输出 `pic/spe-train-live-test/` 两张组合柱状图
 - [ ] T5.3 E2：L5 实景训练（leaf01-03 / leaf05 / leaf04，A/B/C/D）→ 标准图 + 困难测试，输出 `pic/spelive-train-test/`
-- [ ] T5.4 生成 all32 数据/注册表/缓存（1798 → 1082/358/358）
+- [x] T5.4 生成 all32 数据/注册表/缓存（1798 → 1082/358/358）— 2026-10-19
 - [ ] T5.5 E3a：W32 训练（A/B/C/D）→ 白底 test 标准图，输出 `pic/spec-train-test-all/`
 - [ ] T5.6 E3b：W32 → 实景 5 类子集，输出 `pic/spe-train-live-test-all/` 两张组合柱状图
 - [x] T5.7 E3c 不执行（用户确认：其它种类实景不做演示）

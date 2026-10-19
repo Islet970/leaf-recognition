@@ -1,0 +1,286 @@
+{
+  "subset": "all32",
+  "seed": 42,
+  "source": "data/class_map.json",
+  "leaves_dir": "data/Leaves",
+  "total_images": 1798,
+  "split_totals": {
+    "train": 1082,
+    "val": 358,
+    "test": 358
+  },
+  "classes": {
+    "phyllostachys_edulis": {
+      "flavia_label": 1,
+      "py_label": 0,
+      "total": 57,
+      "train": 35,
+      "val": 11,
+      "test": 11
+    },
+    "aesculus_chinensis": {
+      "flavia_label": 2,
+      "py_label": 1,
+      "total": 57,
+      "train": 35,
+      "val": 11,
+      "test": 11
+    },
+    "berberis_anhweiensis": {
+      "flavia_label": 3,
+      "py_label": 2,
+      "total": 62,
+      "train": 38,
+      "val": 12,
+      "test": 12
+    },
+    "cercis_chinensis": {
+      "flavia_label": 4,
+      "py_label": 3,
+      "total": 67,
+      "train": 41,
+      "val": 13,
+      "test": 13
+    },
+    "indigofera_tinctoria": {
+      "flavia_label": 5,
+      "py_label": 4,
+      "total": 71,
+      "train": 43,
+      "val": 14,
+      "test": 14
+    },
+    "acer_palmatum": {
+      "flavia_label": 6,
+      "py_label": 5,
+      "total": 54,
+      "train": 32,
+      "val": 11,
+      "test": 11
+    },
+    "phoebe_nanmu": {
+      "flavia_label": 7,
+      "py_label": 6,
+      "total": 58,
+      "train": 34,
+      "val": 12,
+      "test": 12
+    },
+    "kalopanax_septemlobus": {
+      "flavia_label": 8,
+      "py_label": 7,
+      "total": 51,
+      "train": 31,
+      "val": 10,
+      "test": 10
+    },
+    "cinnamomum_japonicum": {
+      "flavia_label": 9,
+      "py_label": 8,
+      "total": 53,
+      "train": 31,
+      "val": 11,
+      "test": 11
+    },
+    "koelreuteria_paniculata": {
+      "flavia_label": 10,
+      "py_label": 9,
+      "total": 55,
+      "train": 33,
+      "val": 11,
+      "test": 11
+    },
+    "ilex_macrocarpa": {
+      "flavia_label": 11,
+      "py_label": 10,
+      "total": 46,
+      "train": 28,
+      "val": 9,
+      "test": 9
+    },
+    "pittosporum_tobira": {
+      "flavia_label": 12,
+      "py_label": 11,
+      "total": 55,
+      "train": 33,
+      "val": 11,
+      "test": 11
+    },
+    "chimonanthus_praecox": {
+      "flavia_label": 14,
+      "py_label": 12,
+      "total": 50,
+      "train": 30,
+      "val": 10,
+      "test": 10
+    },
+    "cinnamomum_camphora": {
+      "flavia_label": 15,
+      "py_label": 13,
+      "total": 61,
+      "train": 37,
+      "val": 12,
+      "test": 12
+    },
+    "viburnum_awabuki": {
+      "flavia_label": 16,
+      "py_label": 14,
+      "total": 57,
+      "train": 35,
+      "val": 11,
+      "test": 11
+    },
+    "osmanthus_fragrans": {
+      "flavia_label": 17,
+      "py_label": 15,
+      "total": 54,
+      "train": 32,
+      "val": 11,
+      "test": 11
+    },
+    "cedrus_deodara": {
+      "flavia_label": 18,
+      "py_label": 16,
+      "total": 73,
+      "train": 43,
+      "val": 15,
+      "test": 15
+    },
+    "ginkgo_biloba": {
+      "flavia_label": 19,
+      "py_label": 17,
+      "total": 61,
+      "train": 37,
+      "val": 12,
+      "test": 12
+    },
+    "lagerstroemia_indica": {
+      "flavia_label": 20,
+      "py_label": 18,
+      "total": 57,
+      "train": 35,
+      "val": 11,
+      "test": 11
+    },
+    "nerium_oleander": {
+      "flavia_label": 21,
+      "py_label": 19,
+      "total": 62,
+      "train": 38,
+      "val": 12,
+      "test": 12
+    },
+    "podocarpus_macrophyllus": {
+      "flavia_label": 22,
+      "py_label": 20,
+      "total": 57,
+      "train": 35,
+      "val": 11,
+      "test": 11
+    },
+    "prunus_serrulata": {
+      "flavia_label": 23,
+      "py_label": 21,
+      "total": 53,
+      "train": 31,
+      "val": 11,
+      "test": 11
+    },
+    "ligustrum_lucidum": {
+      "flavia_label": 24,
+      "py_label": 22,
+      "total": 53,
+      "train": 31,
+      "val": 11,
+      "test": 11
+    },
+    "toona_sinensis": {
+      "flavia_label": 25,
+      "py_label": 23,
+      "total": 63,
+      "train": 37,
+      "val": 13,
+      "test": 13
+    },
+    "prunus_persica": {
+      "flavia_label": 26,
+      "py_label": 24,
+      "total": 49,
+      "train": 29,
+      "val": 10,
+      "test": 10
+    },
+    "manglietia_fordiana": {
+      "flavia_label": 27,
+      "py_label": 25,
+      "total": 47,
+      "train": 29,
+      "val": 9,
+      "test": 9
+    },
+    "acer_buergerianum": {
+      "flavia_label": 28,
+      "py_label": 26,
+      "total": 47,
+      "train": 29,
+      "val": 9,
+      "test": 9
+    },
+    "mahonia_bealei": {
+      "flavia_label": 29,
+      "py_label": 27,
+      "total": 54,
+      "train": 32,
+      "val": 11,
+      "test": 11
+    },
+    "magnolia_grandiflora": {
+      "flavia_label": 30,
+      "py_label": 28,
+      "total": 53,
+      "train": 31,
+      "val": 11,
+      "test": 11
+    },
+    "populus_canadensis": {
+      "flavia_label": 31,
+      "py_label": 29,
+      "total": 59,
+      "train": 35,
+      "val": 12,
+      "test": 12
+    },
+    "liriodendron_chinense": {
+      "flavia_label": 32,
+      "py_label": 30,
+      "total": 51,
+      "train": 31,
+      "val": 10,
+      "test": 10
+    },
+    "citrus_reticulata": {
+      "flavia_label": 33,
+      "py_label": 31,
+      "total": 51,
+      "train": 31,
+      "val": 10,
+      "test": 10
+    }
+  },
+  "leakage": {
+    "pairwise_disjoint": true,
+    "union_matches_total": true,
+    "cross_class_duplicate_sha256": 0,
+    "duplicate_sha256_within_class": 0,
+    "unique_sha256": 1798,
+    "total_images": 1798
+  },
+  "expected_5class_check": "skipped (class set is not the fixed five)",
+  "ignored_out_of_range": 0,
+  "manifests": {
+    "train": "data/splits/all32/train.csv",
+    "val": "data/splits/all32/val.csv",
+    "test": "data/splits/all32/test.csv",
+    "all": "data/splits/all32/all.csv"
+  }
+}

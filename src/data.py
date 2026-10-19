@@ -15,9 +15,12 @@ from typing import Any
 import numpy as np
 import pandas as pd
 import torch
-from PIL import Image, ImageOps
+from PIL import Image, ImageFile, ImageOps
 from torch.utils.data import DataLoader, Dataset
 from torchvision import transforms
+
+# 数据集中存在尾部截断的 JPEG（如 3023.jpg），启用容错解码
+ImageFile.LOAD_TRUNCATED_IMAGES = True
 
 IMAGENET_MEAN = [0.485, 0.456, 0.406]
 IMAGENET_STD = [0.229, 0.224, 0.225]

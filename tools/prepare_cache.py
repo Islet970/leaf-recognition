@@ -27,7 +27,10 @@ import sys
 import time
 from pathlib import Path
 
-from PIL import Image, ImageOps
+from PIL import Image, ImageFile, ImageOps
+
+# 数据集中存在尾部截断的 JPEG（如 3023.jpg），启用容错解码
+ImageFile.LOAD_TRUNCATED_IMAGES = True
 
 DEFAULT_LONG_EDGE = 320
 DEFAULT_QUALITY = 95

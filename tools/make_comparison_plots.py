@@ -10,8 +10,12 @@
 数据来源：
     训练曲线  ``{runs}/{MODEL_NAMES[mid]}_seed{seed}/history.csv``
     测试指标  ``{runs}/{MODEL_NAMES[mid]}_seed{seed}/test_metrics.json``
-    样本推理  ``{runs}/.../best.pt`` + ``{data}/test.csv`` + ``data/Leaves/``
+    样本推理  ``{runs}/.../best.pt`` + ``{data}/test.csv`` + ``{image_root}/``
     中文类别  ``data/class_registry.json``（与 checkpoint 的 ``class_keys`` 对齐）
+
+``--image-root`` 指定图片根目录（默认 ``data/Leaves`` 白底图）；实景实验传入
+``--image-root data/leaf``，此时 CSV 的 ``filename`` 为相对该目录的路径
+（如 ``camphor_test/leaf04_000010.jpg``）。相对路径按项目根目录解析。
 """
 
 from __future__ import annotations
@@ -29,7 +33,10 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
-from PIL import Image, ImageOps
+from PIL import Image, ImageFile, ImageOps
+
+# 数据集中存在尾部截断的 JPEG（如 3023.jpg），启用容错解码
+ImageFile.LOAD_TRUNCATED_IMAGES = True
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 if str(PROJECT_ROOT) not in sys.path:
@@ -64,6 +71,14 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     )
     parser.add_argument(
         "--data", default="data/splits/5class", help="划分目录，读取 test.csv（默认 data/splits/5class）"
+    )
+    parser.add_argument(
+        "--image-root",
+        default="data/Leaves",
+        help=(
+            "样本图片根目录（默认 data/Leaves）；实景实验用 data/leaf，"
+            "CSV 的 filename 相对该目录拼接"
+        ),
     )
     parser.add_argument(
         "--registry", default="data/class_registry.json", help="类别注册表路径"
@@ -537,7 +552,12 @@ def main(argv: list[str] | None = None) -> int:
     registry_path = Path(args.registry)
     out_dir = Path(args.out)
     out_dir.mkdir(parents=True, exist_ok=True)
-    image_root = PROJECT_ROOT / "data" / "Leaves"
+    image_root = Path(args.image_root)
+    if not image_root.is_absolute():
+        # 默认 data/Leaves 及 plans.md 中的 data/leaf 均相对项目根目录
+        image_root = PROJECT_ROOT / image_root
+    if not image_root.is_dir():
+        raise SystemExit(f"找不到图片根目录: {image_root}")
 
     models: list[str] = args.models
     if not models:

@@ -297,3 +297,22 @@
 - 验证结论: 通过
 - 提交: `feat(data): 生成实景清单与视频级划分`
 - 遗留问题 / 下一步: E1 评测；E2 实景训练
+
+---
+
+## [2026-10-19 17:10] T5.4 生成 32 类数据、注册表与缓存
+
+- 执行代理: 主代理（数据构建）+ 子代理（截断图修复，opus / medium）
+- 目标: 为 E3a/E3b 准备 32 类白底数据与缓存
+- 改动:
+  - 新增 `data/class_registry_all32.json`（32 类，py_label 0–31）
+  - 新增 `data/splits/all32/{train,val,test,all}.csv` 与 `split_stats.json`（1082/358/358/1798）
+  - 生成 `data/cache/leaf_320_all32/`（1798 张，长边 320）
+  - `tools/prepare_cache.py`、`src/data.py`、`tools/make_comparison_plots.py` 启用 `ImageFile.LOAD_TRUNCATED_IMAGES = True`
+- 命令与结果:
+  - `build_dataset.py --classes all --subset all32 ...` → 32 类，1798 张，train/val/test = 1082/358/358；三集合两两不相交；跨类 SHA-256 重复 0；VALIDATION PASS
+  - `prepare_cache.py --manifest data/splits/all32/all.csv` → 首次失败 1 张（3023.jpg 截断 51 字节）；启用容错后补全，最终 1798 张、失败 0
+  - `3023.jpg` 普通打开失败、容错打开成功（1600×1200 RGB）；缓存 320×240 RGB；训练/验证 tensor `(3,128,128)` float32
+- 验证结论: 通过
+- 提交: `feat(data): 生成 32 类数据与缓存并修复截断图读取`
+- 遗留问题 / 下一步: E3a 训练进行中；E3b 待 W32 完成后评测
