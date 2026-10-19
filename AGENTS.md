@@ -241,9 +241,9 @@ feat(data): 实现五类分层划分
 5. **训练完成后的强制图表门禁**：每次确认训练完成（新 run 通过 T3.2 校验）后，必须运行：
    ```bash
    python tools/make_comparison_plots.py --runs runs/5class --models A B C D \
-     --data data/splits/5class --registry data/class_registry.json --out pic
+     --data data/splits/5class --registry data/class_registry.json --out pic/spec-train-test
    ```
-   并在 `pic/` 生成/更新以下 5 张图：
+   五类白底图输出到 `pic/spec-train-test/`，32 类白底图输出到 `pic/spec-train-test-all/`；实景实验按 `plans.md` §15.4 输出到 `pic/spe-train-live-test*/` 与 `pic/spelive-train-test*/`。每次必须在对应目录生成/更新以下 5 张图：
    - `fig4_1_train_loss_ABCD.png`：A/B/C/D 训练损失–轮次折线图（四模型同图）；
    - `fig4_2_train_acc_ABCD.png`：A/B/C/D 训练准确率–轮次折线图（四模型同图）；
    - `fig4_4_test_acc_bar.png`：A/B/C/D 测试准确率柱状图；

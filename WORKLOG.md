@@ -250,3 +250,17 @@
 - 验证结论: 计划文档自检通过；未创建代码、未启动训练
 - 提交: `docs(plan): 新增实景与 32 类扩展实验计划`
 - 遗留问题 / 下一步: 按 §15.5 从 T5.1 开始执行；E3c 需先补齐 27 类实景数据
+
+---
+
+## [2026-10-19 16:40] T5.0a 对齐实验输出目录到 `pic/` 子目录
+
+- 执行代理: 主代理
+- 目标: 按用户已创建的 `pic/` 子目录统一图表输出路径
+- 改动:
+  - `plans.md` §7、§14.5、§15.3–15.5、§15.8 的输出路径统一为 `pic/spec-train-test*`、`pic/spe-train-live-test*`、`pic/spelive-train-test*`
+  - `AGENTS.md` §7 绘图门禁：五类白底输出 `pic/spec-train-test`，32 类输出 `pic/spec-train-test-all`
+  - 原 `pic/fig4_*.png` 归档到 `pic/spec-train-test/`
+- 说明: `pic/spec-train-test-all/` 当前是同名占位副本，W32 训练后重绘覆盖；空目录 `pic/spe-*`、`pic/spelive-*` 由后续脚本写入
+- 验证: 计划中的命令路径与磁盘目录一致；未启动训练
+- 提交: `docs(plan): 对齐实景实验输出目录到 pic 子目录`

@@ -398,7 +398,7 @@ cd /c/Users/Voidkongbai/Desktop/DeepLearning
 | `fig4_8_gradcam_examples.png` | 4.3/5.2 | Grad-CAM 示例（可选） |
 | `fig4_9_robustness.png` | 4.3/5.2 | 压力测试对比（强烈建议，见下） |
 
-> 当前已交付的 A/B/C/D 四模型对比图由 `tools/make_comparison_plots.py` 生成到 `pic/`（每次训练完成后必须重绘）：`fig4_1_train_loss_ABCD.png`、`fig4_2_train_acc_ABCD.png`、`fig4_3_test_loss_bar.png`、`fig4_4_test_acc_bar.png`、`fig4_6_sample_predictions_ABCD.png`。
+> A/B/C/D 四模型对比图由 `tools/make_comparison_plots.py` 生成（每次训练完成后必须重绘）：五类白底图存 `pic/spec-train-test/`，32 类白底图存 `pic/spec-train-test-all/`；实景实验图分别存 `pic/spe-train-live-test/`、`pic/spelive-train-test/`、`pic/spe-train-live-test-all/`、`pic/spelive-train-test-all/`。文件名为 `fig4_1_train_loss_ABCD.png`、`fig4_2_train_acc_ABCD.png`、`fig4_3_test_loss_bar.png`、`fig4_4_test_acc_bar.png`、`fig4_6_sample_predictions_ABCD.png`。
 
 **样本选择规则**（`src/report_figures.py`，不要硬编码文件名）：
 1. A 错、D 对的样本（若有）；
@@ -582,12 +582,13 @@ DeepLearning/
 │  └─ verify_project.py
 ├─ webapp/                    # 见 5.1
 ├─ runs/{5class,live5,all32,live32}/<run_id>/
-├─ pic/                       # A/B/C/D 训练完成后的对比图（每次训练后重绘）
-├─ spe-train-live-test/       # E1：W5 → 实景 _test/_test_hard
-├─ spelive-train-test/        # E2：L5 实景训练 → 实景测试
-├─ spe-train-test-all/        # E3a：W32 → 白底测试
-├─ spe-train-live-test-all/   # E3b：W32 → 实景 5 类子集
-├─ spelive-train-test-all/    # E3c：L32（依赖 32 类实景数据）
+├─ pic/
+│  ├─ spec-train-test/        # W5 白底训练标准 5 图（已完成）
+│  ├─ spec-train-test-all/    # E3a：W32 白底训练标准图
+│  ├─ spe-train-live-test/    # E1：W5 → 实景 _test/_test_hard
+│  ├─ spe-train-live-test-all/ # E3b：W32 → 实景 5 类子集
+│  ├─ spelive-train-test/     # E2：L5 实景训练 → 实景测试
+│  └─ spelive-train-test-all/ # E3c：L32（依赖 32 类实景数据）
 └─ results/{figures,tables,predictions,screenshots}/
 ```
 
@@ -598,11 +599,11 @@ DeepLearning/
 3. **实景清单（T5.1）**：`build_live_dataset.py` 生成 live_all / live5（含 hard_test.csv）/ live_all32；检查 432/227、301/79/52、35，且无跨 split 泄漏。
 4. **模型冒烟**：A 训练 1 epoch，确认 loss 有限、checkpoint 可加载、val acc > 20%。（已完成）
 5. **五类白底全量训练（W5）**：A/B/C/D/E，40 epoch（已完成）。
-6. **E1**：W5 → `_test` / `_test_hard`，输出 `spe-train-live-test/` 两张组合柱状图。
-7. **E2（L5）**：实景训练 A/B/C/D（leaf01-03 train / leaf05 val / leaf04 test），输出 `spelive-train-test/` 标准图 + 困难测试图。
-8. **E3a（W32）**：生成 all32 数据/缓存，训练 A/B/C/D，白底 test 标准图 → `spe-train-test-all/`。
-9. **E3b**：W32 → 实景 5 类子集，输出 `spe-train-live-test-all/` 两张组合柱状图。
-10. **E3c（L32）**：需 32 类实景数据；有则训练并输出 `spelive-train-test-all/`，没有则记录 BLOCKED。
+6. **E1**：W5 → `_test` / `_test_hard`，输出 `pic/spe-train-live-test/` 两张组合柱状图。
+7. **E2（L5）**：实景训练 A/B/C/D（leaf01-03 train / leaf05 val / leaf04 test），输出 `pic/spelive-train-test/` 标准图 + 困难测试图。
+8. **E3a（W32）**：生成 all32 数据/缓存，训练 A/B/C/D，白底 test 标准图 → `pic/spec-train-test-all/`。
+9. **E3b**：W32 → 实景 5 类子集，输出 `pic/spe-train-live-test-all/` 两张组合柱状图。
+10. **E3c（L32）**：需 32 类实景数据；有则训练并输出 `pic/spelive-train-test-all/`，没有则记录 BLOCKED。
 11. **网页与报告素材**：网页、截图、压力测试、报告图表。
 
 ---
@@ -827,12 +828,12 @@ DeepLearning/
 ### 14.5 实景与全类扩展实验（新增计划，尚未执行）
 
 - [ ] T5.1 生成实景清单（live_all / live5 / live_all32）并做视频级泄漏检查
-- [ ] T5.2 E1：W5 五类白底模型 → `_test` / `_test_hard`，输出 `spe-train-live-test/` 两张组合柱状图
-- [ ] T5.3 E2：L5 实景训练（leaf01-03 / leaf05 / leaf04，A/B/C/D）→ 标准图 + 困难测试，输出 `spelive-train-test/`
+- [ ] T5.2 E1：W5 五类白底模型 → `_test` / `_test_hard`，输出 `pic/spe-train-live-test/` 两张组合柱状图
+- [ ] T5.3 E2：L5 实景训练（leaf01-03 / leaf05 / leaf04，A/B/C/D）→ 标准图 + 困难测试，输出 `pic/spelive-train-test/`
 - [ ] T5.4 生成 all32 数据/注册表/缓存（1798 → 1082/358/358）
-- [ ] T5.5 E3a：W32 训练（A/B/C/D）→ 白底 test 标准图，输出 `spe-train-test-all/`
-- [ ] T5.6 E3b：W32 → 实景 5 类子集，输出 `spe-train-live-test-all/` 两张组合柱状图
-- [ ] T5.7 E3c：L32 实景训练（依赖 32 类实景数据；缺失则记录 BLOCKED）→ `spelive-train-test-all/`
+- [ ] T5.5 E3a：W32 训练（A/B/C/D）→ 白底 test 标准图，输出 `pic/spec-train-test-all/`
+- [ ] T5.6 E3b：W32 → 实景 5 类子集，输出 `pic/spe-train-live-test-all/` 两张组合柱状图
+- [ ] T5.7 E3c：L32 实景训练（依赖 32 类实景数据；缺失则记录 BLOCKED）→ `pic/spelive-train-test-all/`
 - [ ] T5.8 全部产物校验、WORKLOG 记录与 git 提交
 
 ---
@@ -891,11 +892,11 @@ DeepLearning/
 
 | 编号 | 量级 | 训练 | 测试 | 模型目录 | 图片目录 |
 |---|---|---|---|---|---|
-| **E1** | S | W5 白底（已有） | `_test` 432 / `_test_hard` 227 | `runs/5class` | `spe-train-live-test/` |
-| **E2** | S | L5 实景（301 train） | `_test` leaf04 52 / `_test_hard` leaf04 35 | `runs/live5` | `spelive-train-test/` |
-| **E3a** | A | W32 白底（1082 train） | Leaves test 358 | `runs/all32` | `spe-train-test-all/` |
-| **E3b** | A | W32 白底 | 实景 5 类子集 432 / 227 | `runs/all32` | `spe-train-live-test-all/` |
-| **E3c** | A | L32 实景（数据依赖） | 实景 test | `runs/live32` | `spelive-train-test-all/` |
+| **E1** | S | W5 白底（已有） | `_test` 432 / `_test_hard` 227 | `runs/5class` | `pic/spe-train-live-test/` |
+| **E2** | S | L5 实景（301 train） | `_test` leaf04 52 / `_test_hard` leaf04 35 | `runs/live5` | `pic/spelive-train-test/` |
+| **E3a** | A | W32 白底（1082 train） | Leaves test 358 | `runs/all32` | `pic/spec-train-test-all/` |
+| **E3b** | A | W32 白底 | 实景 5 类子集 432 / 227 | `runs/all32` | `pic/spe-train-live-test-all/` |
+| **E3c** | A | L32 实景（数据依赖） | 实景 test | `runs/live32` | `pic/spelive-train-test-all/` |
 
 - **E1** 不重新训练，只做推理评测。
 - **E2** 每个模型训练 40 epoch，产物与 W5 相同：`best.pt/last.pt/history.*/config.json/test_metrics.json/train.log`。
@@ -904,32 +905,36 @@ DeepLearning/
 
 ### 15.4 输出与图表命名
 
+**W5 白底标准 5 图（已完成）**：`pic/spec-train-test/`（当前 W5 的 5 张标准图已归档在此）。
+
+**E3a 白底标准 5 图**：`pic/spec-train-test-all/`；当前目录中的同名图是占位副本，W32 训练后必须重绘覆盖。
+
 **E1 / E3b（每张图含两个子图：测试准确率柱状 + 测试 loss 柱状；四模型同图）**：
 
-- `spe-train-live-test/test_ABCD.png`（`_test`）
-- `spe-train-live-test/test_hard_ABCD.png`（`_test_hard`）
-- `spe-train-live-test-all/test_ABCD.png`、`test_hard_ABCD.png`
+- `pic/spe-train-live-test/test_ABCD.png`（`_test`）
+- `pic/spe-train-live-test/test_hard_ABCD.png`（`_test_hard`）
+- `pic/spe-train-live-test-all/test_ABCD.png`、`test_hard_ABCD.png`
 - 同时输出 `metrics_test.csv` / `metrics_test_hard.csv`，列为 `model,accuracy,macro_f1,ce_loss,n`。
 
 **E2（AGENTS.md §7 标准 5 张 + 困难测试 2 张）**：
 
-- `spelive-train-test/fig4_1_train_loss_ABCD.png`
-- `spelive-train-test/fig4_2_train_acc_ABCD.png`
-- `spelive-train-test/fig4_3_test_loss_bar.png`
-- `spelive-train-test/fig4_4_test_acc_bar.png`
-- `spelive-train-test/fig4_6_sample_predictions_ABCD.png`
-- `spelive-train-test/fig4_3_test_loss_bar_hard.png`、`fig4_4_test_acc_bar_hard.png`
-- `spelive-train-test/metrics_test.csv`、`metrics_test_hard.csv`
+- `pic/spelive-train-test/fig4_1_train_loss_ABCD.png`
+- `pic/spelive-train-test/fig4_2_train_acc_ABCD.png`
+- `pic/spelive-train-test/fig4_3_test_loss_bar.png`
+- `pic/spelive-train-test/fig4_4_test_acc_bar.png`
+- `pic/spelive-train-test/fig4_6_sample_predictions_ABCD.png`
+- `pic/spelive-train-test/fig4_3_test_loss_bar_hard.png`、`fig4_4_test_acc_bar_hard.png`
+- `pic/spelive-train-test/metrics_test.csv`、`metrics_test_hard.csv`
 
 **E3a（标准 5 张，白底测试）**：
 
-- `spe-train-test-all/fig4_1_train_loss_ABCD.png`
-- `spe-train-test-all/fig4_2_train_acc_ABCD.png`
-- `spe-train-test-all/fig4_3_test_loss_bar.png`
-- `spe-train-test-all/fig4_4_test_acc_bar.png`
-- `spe-train-test-all/fig4_6_sample_predictions_ABCD.png`
+- `pic/spec-train-test-all/fig4_1_train_loss_ABCD.png`
+- `pic/spec-train-test-all/fig4_2_train_acc_ABCD.png`
+- `pic/spec-train-test-all/fig4_3_test_loss_bar.png`
+- `pic/spec-train-test-all/fig4_4_test_acc_bar.png`
+- `pic/spec-train-test-all/fig4_6_sample_predictions_ABCD.png`
 
-**E3c（若执行）**：与 E2 相同的 5 张标准图，保存到 `spelive-train-test-all/`。
+**E3c（若执行）**：与 E2 相同的 5 张标准图，保存到 `pic/spelive-train-test-all/`。
 
 ### 15.5 执行步骤与命令
 
@@ -952,11 +957,11 @@ DeepLearning/
 "C:/Anaconda/envs/torch_env/python.exe" tools/evaluate_live.py \
   --runs runs/5class --models A B C D --registry data/class_registry.json \
   --manifest data/splits/live_all/test.csv --image-root data/leaf \
-  --out spe-train-live-test --tag test
+  --out pic/spe-train-live-test --tag test
 "C:/Anaconda/envs/torch_env/python.exe" tools/evaluate_live.py \
   --runs runs/5class --models A B C D --registry data/class_registry.json \
   --manifest data/splits/live_all/hard_test.csv --image-root data/leaf \
-  --out spe-train-live-test --tag test_hard
+  --out pic/spe-train-live-test --tag test_hard
 ```
 
 **T5.3 E2（L5 实景训练 + 标准图）**：
@@ -969,11 +974,11 @@ DeepLearning/
   --output runs/live5 --num-workers 0 --threads 8
 "C:/Anaconda/envs/torch_env/python.exe" tools/make_comparison_plots.py \
   --runs runs/live5 --models A B C D --data data/splits/live5 \
-  --image-root data/leaf --registry data/class_registry.json --out spelive-train-test --dpi 160
+  --image-root data/leaf --registry data/class_registry.json --out pic/spelive-train-test --dpi 160
 "C:/Anaconda/envs/torch_env/python.exe" tools/evaluate_live.py \
   --runs runs/live5 --models A B C D --registry data/class_registry.json \
   --manifest data/splits/live5/hard_test.csv --image-root data/leaf \
-  --out spelive-train-test --tag test_hard
+  --out pic/spelive-train-test --tag test_hard
 ```
 
 **T5.4 生成 all32 数据与缓存**：
@@ -997,7 +1002,7 @@ DeepLearning/
   --output runs/all32 --num-workers 0 --threads 8
 "C:/Anaconda/envs/torch_env/python.exe" tools/make_comparison_plots.py \
   --runs runs/all32 --models A B C D --data data/splits/all32 --image-root data/Leaves \
-  --registry data/class_registry_all32.json --out spe-train-test-all --dpi 160
+  --registry data/class_registry_all32.json --out pic/spec-train-test-all --dpi 160
 ```
 
 **T5.6 E3b（W32 → 实景 5 类子集）**：
@@ -1006,11 +1011,11 @@ DeepLearning/
 "C:/Anaconda/envs/torch_env/python.exe" tools/evaluate_live.py \
   --runs runs/all32 --models A B C D --registry data/class_registry_all32.json \
   --manifest data/splits/live_all32/test.csv --image-root data/leaf \
-  --out spe-train-live-test-all --tag test
+  --out pic/spe-train-live-test-all --tag test
 "C:/Anaconda/envs/torch_env/python.exe" tools/evaluate_live.py \
   --runs runs/all32 --models A B C D --registry data/class_registry_all32.json \
   --manifest data/splits/live_all32/hard_test.csv --image-root data/leaf \
-  --out spe-train-live-test-all --tag test_hard
+  --out pic/spe-train-live-test-all --tag test_hard
 ```
 
 **T5.7 E3c（L32，条件执行）**：先检查 `data/leaf` 是否覆盖 32 类且每类有 leaf01–05。满足时：
@@ -1025,7 +1030,7 @@ DeepLearning/
   --output runs/live32 --num-workers 0 --threads 8
 "C:/Anaconda/envs/torch_env/python.exe" tools/make_comparison_plots.py \
   --runs runs/live32 --models A B C D --data data/splits/live32 --image-root data/leaf \
-  --registry data/class_registry_all32.json --out spelive-train-test-all --dpi 160
+  --registry data/class_registry_all32.json --out pic/spelive-train-test-all --dpi 160
 ```
 
 不满足时：在 `WORKLOG.md` 写 `E3c BLOCKED: 32-class live data missing (covered 5/32)`，跳过训练。
@@ -1056,10 +1061,10 @@ DeepLearning/
 ### 15.8 验收标准
 
 - [ ] T5.1 三个实景清单生成，计数与 §15.2 一致，无跨 split 泄漏；
-- [ ] E1：`spe-train-live-test/` 下 `test_ABCD.png`、`test_hard_ABCD.png` 存在且非空，四模型 acc/loss 数值正确；
-- [ ] E2：`runs/live5` 四个模型各有 7 个产物；`spelive-train-test/` 下 5 张标准图 + 2 张困难测试图存在且非空；样本网格 3×4；
-- [ ] E3a：`runs/all32` 四个模型各有 7 个产物；`spe-train-test-all/` 下 5 张标准图存在且非空；
-- [ ] E3b：`spe-train-live-test-all/` 下 2 张图存在且非空；报告明确“实景覆盖 5/32 类”；
+- [ ] E1：`pic/spe-train-live-test/` 下 `test_ABCD.png`、`test_hard_ABCD.png` 存在且非空，四模型 acc/loss 数值正确；
+- [ ] E2：`runs/live5` 四个模型各有 7 个产物；`pic/spelive-train-test/` 下 5 张标准图 + 2 张困难测试图存在且非空；样本网格 3×4；
+- [ ] E3a：`runs/all32` 四个模型各有 7 个产物；`pic/spec-train-test-all/` 下 5 张标准图存在且非空；
+- [ ] E3b：`pic/spe-train-live-test-all/` 下 2 张图存在且非空；报告明确“实景覆盖 5/32 类”；
 - [ ] E3c：完成或明确 BLOCKED 并记录原因；
 - [ ] 所有图的中文正常、四模型顺序一致、数值与 metrics CSV 对得上；
 - [ ] `plans.md` 勾选、`WORKLOG.md` 记录、git 提交完成。
