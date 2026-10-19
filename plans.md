@@ -747,3 +747,30 @@ DeepLearning/
 | 33 | citrus_reticulata | 柑橘 | Citrus reticulata Blanco | tangerine | 3566-3621 | 51 | |
 
 **校验结论（已完成）**：32/32 编号一致；32/32 区间一致；无需按公开表重新编码。差异仅为学名作者缩写/大小写、英文名同义词和第 25 类的 `Tonna/Toona` 拼写。编号和区间保持本表不变；展示表保留原表写法并在备注注明。**本表是项目唯一权威映射，不再依赖任何外部 cato 文件。**
+
+---
+
+## 14. 执行进度（逐步勾选）
+
+> 规则见 [`AGENTS.md`](AGENTS.md)：验证通过才勾选；代码、勾选、日志放在同一次提交中。
+
+### 14.1 环境与数据
+
+- [x] T1.1 安装缺失依赖并通过导入检查（scikit-learn / matplotlib / pandas / flask / tqdm）— 2026-10-19
+- [ ] T1.2 生成 `data/class_map.json` 与 `data/zh_names.json`（32 类映射）
+- [ ] T1.3 实现 `tools/build_dataset.py`，生成五类注册表与划分清单（294 / 178 / 58 / 58）
+- [ ] T1.4 生成实景测试清单 `data/splits/real/all.csv`（791 行）
+- [ ] T1.5 生成数据预览与 320px 缓存
+
+### 14.2 训练代码
+
+- [ ] T2.1 实现 `src/utils.py` + `src/data.py`（数据集、变换、DataLoader）
+- [ ] T2.2 实现 `src/models.py`（A/B/C/D/E，MSFF + CBAM）
+- [ ] T2.3 实现 `src/train.py`（训练循环、日志、checkpoint、测试指标）
+- [ ] T2.4 独立代码审查通过
+- [ ] T2.5 A 模型 1 epoch 冒烟训练通过（val acc > 20%）
+
+### 14.3 全量训练
+
+- [ ] T3.1 五类 A/B/C/D/E 40 epoch 全量训练完成
+- [ ] T3.2 每个 run 的 `best.pt` / `history.csv` / `train.log` / `test_metrics.json` 校验通过

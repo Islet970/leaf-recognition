@@ -40,3 +40,17 @@
 - 验证结论: 通过
 - 提交: `docs(plan): 按实际状态修订类别映射与实景数据说明`（哈希见 `git log --grep="T0.1"`）
 - 遗留问题 / 下一步: 按执行顺序先做环境依赖安装；随后生成 `data/class_map.json` 并实现 `tools/build_dataset.py`
+
+---
+
+## [2026-10-19 13:25] T1.1 安装训练依赖
+
+- 执行代理: 主代理（环境操作）
+- 目标: 补齐训练/评测/网页所需依赖
+- 改动: 无仓库文件改动；`plans.md` 新增 §14 执行进度并勾选 T1.1
+- 命令与结果:
+  - `C:/Anaconda/envs/torch_env/python.exe -m pip install scikit-learn matplotlib pandas flask tqdm` → 成功安装 scikit-learn 1.7.2、matplotlib 3.10.9、pandas 2.3.3、flask 3.1.3、tqdm 4.70.1
+  - 导入检查脚本 → 5 个包全部 OK；torch 2.5.1、torchvision 0.20.1、CUDA 不可用（CPU 训练）
+- 验证结论: 通过
+- 提交: `chore(env): 安装训练依赖并建立执行进度`（哈希见 `git log --grep="T1.1"`）
+- 遗留问题 / 下一步: T1.2 生成 32 类映射 JSON；T2.1/T2.2 并行实现数据与模型代码
