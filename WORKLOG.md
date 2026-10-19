@@ -54,3 +54,20 @@
 - 验证结论: 通过
 - 提交: `chore(env): 安装训练依赖并建立执行进度`（哈希见 `git log --grep="T1.1"`）
 - 遗留问题 / 下一步: T1.2 生成 32 类映射 JSON；T2.1/T2.2 并行实现数据与模型代码
+
+---
+
+## [2026-10-19 13:40] T1.2 生成 32 类映射与中文名清单
+
+- 执行代理: 子代理（编码，opus / medium）+ 主代理复核
+- 目标: 把 plans.md §13 的 32 类映射固化为程序可读 JSON
+- 改动:
+  - 新增 `tools/make_class_map.py`：解析 plans.md §13，并与 `data/Flavia类别对照表.md` 交叉核对
+  - 新增 `data/class_map.json`：32 类，字段 `flavia_label/key/zh_name/scientific/common/range`
+  - 新增 `data/zh_names.json`：`flavia_label → 中文名`
+- 命令与结果:
+  - `python -X utf8 tools/make_class_map.py` → 32 类；编号 1–12/14–33；区间互不重叠；与对照表 0 差异；张数合计 1798
+  - 主代理独立重读 JSON → 32 条、编号升序、range 均为两个 int、中文名键齐全
+- 验证结论: 通过
+- 提交: `feat(data): 生成 32 类映射与中文名清单`
+- 遗留问题 / 下一步: T1.3 构建五类划分

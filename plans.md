@@ -757,7 +757,7 @@ DeepLearning/
 ### 14.1 环境与数据
 
 - [x] T1.1 安装缺失依赖并通过导入检查（scikit-learn / matplotlib / pandas / flask / tqdm）— 2026-10-19
-- [ ] T1.2 生成 `data/class_map.json` 与 `data/zh_names.json`（32 类映射）
+- [x] T1.2 生成 `data/class_map.json` 与 `data/zh_names.json`（32 类映射）— 2026-10-19
 - [ ] T1.3 实现 `tools/build_dataset.py`，生成五类注册表与划分清单（294 / 178 / 58 / 58）
 - [ ] T1.4 生成实景测试清单 `data/splits/real/all.csv`（791 行）
 - [ ] T1.5 生成数据预览与 320px 缓存

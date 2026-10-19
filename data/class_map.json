@@ -1,0 +1,357 @@
+{
+  "source": "plans.md §13",
+  "classes": [
+    {
+      "flavia_label": 1,
+      "key": "phyllostachys_edulis",
+      "zh_name": "毛竹",
+      "scientific": "Phyllostachys edulis (Carr.) Houz.",
+      "common": "pubescent bamboo",
+      "range": [
+        1001,
+        1059
+      ]
+    },
+    {
+      "flavia_label": 2,
+      "key": "aesculus_chinensis",
+      "zh_name": "七叶树",
+      "scientific": "Aesculus chinensis",
+      "common": "Chinese horse chestnut",
+      "range": [
+        1060,
+        1122
+      ]
+    },
+    {
+      "flavia_label": 3,
+      "key": "berberis_anhweiensis",
+      "zh_name": "安徽小檗",
+      "scientific": "Berberis anhweiensis Ahrendt",
+      "common": "Anhui Barberry",
+      "range": [
+        1552,
+        1616
+      ]
+    },
+    {
+      "flavia_label": 4,
+      "key": "cercis_chinensis",
+      "zh_name": "紫荆",
+      "scientific": "Cercis chinensis",
+      "common": "Chinese redbud",
+      "range": [
+        1123,
+        1194
+      ]
+    },
+    {
+      "flavia_label": 5,
+      "key": "indigofera_tinctoria",
+      "zh_name": "木蓝",
+      "scientific": "Indigofera tinctoria L.",
+      "common": "true indigo",
+      "range": [
+        1195,
+        1267
+      ]
+    },
+    {
+      "flavia_label": 6,
+      "key": "acer_palmatum",
+      "zh_name": "鸡爪槭",
+      "scientific": "Acer Palmatum",
+      "common": "Japanese maple",
+      "range": [
+        1268,
+        1323
+      ]
+    },
+    {
+      "flavia_label": 7,
+      "key": "phoebe_nanmu",
+      "zh_name": "楠木",
+      "scientific": "Phoebe nanmu (Oliv.) Gamble",
+      "common": "Nanmu",
+      "range": [
+        1324,
+        1385
+      ]
+    },
+    {
+      "flavia_label": 8,
+      "key": "kalopanax_septemlobus",
+      "zh_name": "刺楸",
+      "scientific": "Kalopanax septemlobus (Thunb. ex A.Murr.) Koidz.",
+      "common": "castor aralia",
+      "range": [
+        1386,
+        1437
+      ]
+    },
+    {
+      "flavia_label": 9,
+      "key": "cinnamomum_japonicum",
+      "zh_name": "天竺桂",
+      "scientific": "Cinnamomum japonicum Sieb.",
+      "common": "Chinese cinnamon",
+      "range": [
+        1497,
+        1551
+      ]
+    },
+    {
+      "flavia_label": 10,
+      "key": "koelreuteria_paniculata",
+      "zh_name": "栾树",
+      "scientific": "Koelreuteria paniculata Laxm.",
+      "common": "goldenrain tree",
+      "range": [
+        1438,
+        1496
+      ]
+    },
+    {
+      "flavia_label": 11,
+      "key": "ilex_macrocarpa",
+      "zh_name": "大果冬青",
+      "scientific": "Ilex macrocarpa Oliv.",
+      "common": "Big-fruited Holly",
+      "range": [
+        2001,
+        2050
+      ]
+    },
+    {
+      "flavia_label": 12,
+      "key": "pittosporum_tobira",
+      "zh_name": "海桐",
+      "scientific": "Pittosporum tobira (Thunb.) Ait. f.",
+      "common": "Japanese cheesewood",
+      "range": [
+        2051,
+        2113
+      ]
+    },
+    {
+      "flavia_label": 14,
+      "key": "chimonanthus_praecox",
+      "zh_name": "蜡梅",
+      "scientific": "Chimonanthus praecox L.",
+      "common": "wintersweet",
+      "range": [
+        2114,
+        2165
+      ]
+    },
+    {
+      "flavia_label": 15,
+      "key": "cinnamomum_camphora",
+      "zh_name": "香樟",
+      "scientific": "Cinnamomum camphora (L.) J. Presl",
+      "common": "camphortree",
+      "range": [
+        2166,
+        2230
+      ]
+    },
+    {
+      "flavia_label": 16,
+      "key": "viburnum_awabuki",
+      "zh_name": "日本珊瑚树",
+      "scientific": "Viburnum awabuki K.Koch",
+      "common": "Japan Arrowwood",
+      "range": [
+        2231,
+        2290
+      ]
+    },
+    {
+      "flavia_label": 17,
+      "key": "osmanthus_fragrans",
+      "zh_name": "桂花",
+      "scientific": "Osmanthus fragrans Lour.",
+      "common": "sweet osmanthus",
+      "range": [
+        2291,
+        2346
+      ]
+    },
+    {
+      "flavia_label": 18,
+      "key": "cedrus_deodara",
+      "zh_name": "雪松",
+      "scientific": "Cedrus deodara (Roxb.) G. Don",
+      "common": "deodar",
+      "range": [
+        2347,
+        2423
+      ]
+    },
+    {
+      "flavia_label": 19,
+      "key": "ginkgo_biloba",
+      "zh_name": "银杏",
+      "scientific": "Ginkgo biloba L.",
+      "common": "ginkgo, maidenhair tree",
+      "range": [
+        2424,
+        2485
+      ]
+    },
+    {
+      "flavia_label": 20,
+      "key": "lagerstroemia_indica",
+      "zh_name": "紫薇",
+      "scientific": "Lagerstroemia indica (L.) Pers.",
+      "common": "Crape myrtle, Crepe myrtle",
+      "range": [
+        2486,
+        2546
+      ]
+    },
+    {
+      "flavia_label": 21,
+      "key": "nerium_oleander",
+      "zh_name": "夹竹桃",
+      "scientific": "Nerium oleander L.",
+      "common": "oleander",
+      "range": [
+        2547,
+        2612
+      ]
+    },
+    {
+      "flavia_label": 22,
+      "key": "podocarpus_macrophyllus",
+      "zh_name": "罗汉松",
+      "scientific": "Podocarpus macrophyllus (Thunb.) Sweet",
+      "common": "yew plum pine",
+      "range": [
+        2616,
+        2675
+      ]
+    },
+    {
+      "flavia_label": 23,
+      "key": "prunus_serrulata",
+      "zh_name": "日本晚樱",
+      "scientific": "Prunus serrulata Lindl. var. lannesiana auct.",
+      "common": "Japanese Flowering Cherry",
+      "range": [
+        3001,
+        3055
+      ]
+    },
+    {
+      "flavia_label": 24,
+      "key": "ligustrum_lucidum",
+      "zh_name": "女贞",
+      "scientific": "Ligustrum lucidum Ait. f.",
+      "common": "Glossy Privet",
+      "range": [
+        3056,
+        3110
+      ]
+    },
+    {
+      "flavia_label": 25,
+      "key": "toona_sinensis",
+      "zh_name": "香椿",
+      "scientific": "Tonna sinensis M. Roem.",
+      "common": "Chinese Toon",
+      "range": [
+        3111,
+        3175
+      ]
+    },
+    {
+      "flavia_label": 26,
+      "key": "prunus_persica",
+      "zh_name": "桃",
+      "scientific": "Prunus persica (L.) Batsch",
+      "common": "peach",
+      "range": [
+        3176,
+        3229
+      ]
+    },
+    {
+      "flavia_label": 27,
+      "key": "manglietia_fordiana",
+      "zh_name": "木莲",
+      "scientific": "Manglietia fordiana Oliv.",
+      "common": "Ford Woodlotus",
+      "range": [
+        3230,
+        3281
+      ]
+    },
+    {
+      "flavia_label": 28,
+      "key": "acer_buergerianum",
+      "zh_name": "三角枫",
+      "scientific": "Acer buergerianum Miq.",
+      "common": "trident maple",
+      "range": [
+        3282,
+        3334
+      ]
+    },
+    {
+      "flavia_label": 29,
+      "key": "mahonia_bealei",
+      "zh_name": "阔叶十大功劳",
+      "scientific": "Mahonia bealei (Fortune) Carr.",
+      "common": "Beale's barberry",
+      "range": [
+        3335,
+        3389
+      ]
+    },
+    {
+      "flavia_label": 30,
+      "key": "magnolia_grandiflora",
+      "zh_name": "广玉兰",
+      "scientific": "Magnolia grandiflora L.",
+      "common": "southern magnolia",
+      "range": [
+        3390,
+        3446
+      ]
+    },
+    {
+      "flavia_label": 31,
+      "key": "populus_canadensis",
+      "zh_name": "加杨",
+      "scientific": "Populus ×canadensis Moench",
+      "common": "Canadian poplar",
+      "range": [
+        3447,
+        3510
+      ]
+    },
+    {
+      "flavia_label": 32,
+      "key": "liriodendron_chinense",
+      "zh_name": "鹅掌楸",
+      "scientific": "Liriodendron chinense (Hemsl.) Sarg.",
+      "common": "Chinese tulip tree",
+      "range": [
+        3511,
+        3563
+      ]
+    },
+    {
+      "flavia_label": 33,
+      "key": "citrus_reticulata",
+      "zh_name": "柑橘",
+      "scientific": "Citrus reticulata Blanco",
+      "common": "tangerine",
+      "range": [
+        3566,
+        3621
+      ]
+    }
+  ]
+}
