@@ -316,3 +316,29 @@
 - 验证结论: 通过
 - 提交: `feat(data): 生成 32 类数据与缓存并修复截断图读取`
 - 遗留问题 / 下一步: E3a 训练进行中；E3b 待 W32 完成后评测
+
+---
+
+## [2026-10-19 17:25] T5.2 E1：W5 白底模型 → 实景测试
+
+- 执行代理: 子代理（编码 evaluate_live.py，opus / medium）+ 主代理运行与复核
+- 目标: 用已训练的 W5 四模型测试实景普通/困难集，评估白底→实景跨域
+- 改动:
+  - 新增 `tools/evaluate_live.py`
+  - 新增 `pic/spe-train-live-test/test_ABCD.png`、`test_hard_ABCD.png`
+  - 新增 `pic/spe-train-live-test/metrics_test.csv`、`metrics_test_hard.csv`
+- 命令与结果:
+  - `evaluate_live.py --runs runs/5class --manifest live_all/test.csv` → n=432
+    - A 37.27% / F1 0.3574 / CE 1.5107
+    - B 50.93% / F1 0.4833 / CE 1.3437
+    - C 35.19% / F1 0.3309 / CE 1.5551
+    - D 42.82% / F1 0.4019 / CE 1.5167
+  - `--manifest live_all/hard_test.csv` → n=227
+    - A 26.43% / F1 0.2430 / CE 1.7083
+    - B 33.92% / F1 0.2869 / CE 1.5837
+    - C 22.91% / F1 0.2050 / CE 1.9119
+    - D 31.28% / F1 0.3035 / CE 1.8165
+  - 主代理目视检查两张图：中文正常、四模型同图、柱顶数值正确
+- 验证结论: 通过。白底训练模型在实景上仅 35–51%（普通）/ 23–34%（困难），域差异显著，符合预期
+- 提交: `feat(eval): 完成 E1 白底模型实景评测`
+- 遗留问题 / 下一步: E2 实景训练完成后生成标准图；E3a/E3b 待 32 类训练完成
