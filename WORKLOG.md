@@ -143,3 +143,22 @@
 - 验证结论: 通过（数据预览图 `fig2_1` 尚未生成，留待报告阶段）
 - 提交: `feat(data): 新增 320px 图像缓存工具`
 - 遗留问题 / 下一步: T2.3 训练脚本完成后先审查，再跑 A 冒烟
+
+---
+
+## [2026-10-19 13:31] T2.3 + T2.4 + T2.5 训练脚本、审查修复与 A 冒烟
+
+- 执行代理: 子代理（编码 T2.3，opus / medium）、子代理（独立审查 T2.4，opus / medium）、子代理（修复，opus / medium）、主代理验证
+- 目标: 实现训练入口，审查并修复风险，完成 A 模型 1 epoch 冒烟
+- 改动:
+  - 新增 `src/train.py`：完整训练/验证/测试流程，checkpoint 与日志产物齐全
+  - 修改 `src/models.py`：仅在 `_self_test()` 中补充预训练权重等价抽查
+  - 训练脚本新增 CSV↔注册表标签交叉校验、val/test 统一使用无平滑 CE、32 类自动 top-5
+- 命令与结果:
+  - 独立审查：无阻塞；1 条重要（标签静默错位风险）+ 5 条建议，重要项与 3 条建议已修复
+  - A 冒烟（1 epoch，完整数据，cache，num-workers=4）：train loss 1.3892 acc 0.5000；val loss 1.3808 acc **0.3966** f1 0.3616；test acc 0.3448、macro-F1 0.2741、top-3 0.8103
+  - 产物核对：`best.pt`/`last.pt`/`history.csv`/`history.json`/`config.json`/`test_metrics.json`/`train.log` 全部生成；checkpoint 字段与注册表一致；test_metrics 含 `topk_k=3`/`topk_accuracy`/`top3_accuracy`
+  - 性能诊断：DataLoader（0 worker）1.08s/178 张；模型 A 6 个 batch 0.80s。冒烟 42.1s/epoch 来自 Windows 4 worker 多进程开销，正式训练改用 `--num-workers 0`
+- 验证结论: 通过（val acc 39.66% > 20%）
+- 提交: `feat(train): 实现训练流程并通过 A 冒烟`
+- 遗留问题 / 下一步: 启动 A/B/C/D/E 40 epoch 全量训练（`--num-workers 0`）

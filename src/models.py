@@ -334,7 +334,7 @@ def build_model(model_id: str, num_classes: int, pretrained: bool = True) -> nn.
 
 
 def _self_test(num_classes: int = 5) -> None:
-    """验收自测：forward 形状、参数量、预训练 missing/unexpected、Grad-CAM 层形状。"""
+    """验收自测：forward 形状、参数量、预训练权重、Grad-CAM 层形状。"""
     torch.manual_seed(42)
     x = torch.randn(2, 3, 128, 128)
     expected_gradcam = {
@@ -344,6 +344,9 @@ def _self_test(num_classes: int = 5) -> None:
         "D": (576, 8, 8),
         "E": (576, 4, 4),
     }
+    # 新建一份 torchvision 预训练模型作为权重等价性对照。
+    reference_v3s = mobilenet_v3_small(weights=MobileNet_V3_Small_Weights.IMAGENET1K_V1)
+    reference_v2 = mobilenet_v2(weights=MobileNet_V2_Weights.IMAGENET1K_V1)
 
     print(f"输入: {tuple(x.shape)}, num_classes={num_classes}")
     for model_id in MODEL_IDS:
@@ -352,6 +355,18 @@ def _self_test(num_classes: int = 5) -> None:
         with torch.no_grad():
             logits = model(x)
         params = sum(p.numel() for p in model.parameters())
+
+        if model_id == "B":
+            layer_name = "features[18][0].weight"
+            model_weight = model.features[18][0].weight
+            reference_weight = reference_v2.features[18][0].weight
+        else:
+            layer_name = "features[12][0].weight"
+            model_weight = model.features[12][0].weight
+            reference_weight = reference_v3s.features[12][0].weight
+        weights_equal = torch.equal(
+            model_weight.detach().cpu(), reference_weight.detach().cpu()
+        )
 
         layer = model.get_gradcam_layer()
         captured = {}
@@ -374,10 +389,14 @@ def _self_test(num_classes: int = 5) -> None:
         print(f"  pretrained: missing={len(missing)}, unexpected={len(unexpected)}")
         print(f"    missing_keys: {missing}")
         print(f"    unexpected_keys: {unexpected}")
+        print(f"  预训练权重抽查 {layer_name}: torch.equal={weights_equal}")
 
         assert tuple(logits.shape) == (2, num_classes), logits.shape
         assert not unexpected, unexpected
         assert cam_shape == expected_gradcam[model_id], (cam_shape, expected_gradcam[model_id])
+        assert weights_equal, (
+            f"[{model_id}] {layer_name} 与新建 torchvision 预训练模型不一致"
+        )
 
     print("\n全部断言通过。")
 

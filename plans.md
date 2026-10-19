@@ -767,9 +767,9 @@ DeepLearning/
 
 - [x] T2.1 实现 `src/utils.py` + `src/data.py`（数据集、变换、DataLoader）— 2026-10-19
 - [x] T2.2 实现 `src/models.py`（A/B/C/D/E，MSFF + CBAM）— 2026-10-19
-- [ ] T2.3 实现 `src/train.py`（训练循环、日志、checkpoint、测试指标）
-- [ ] T2.4 独立代码审查通过
-- [ ] T2.5 A 模型 1 epoch 冒烟训练通过（val acc > 20%）
+- [x] T2.3 实现 `src/train.py`（训练循环、日志、checkpoint、测试指标）— 2026-10-19
+- [x] T2.4 独立代码审查通过 — 2026-10-19（1 条重要 + 3 条建议已修复）
+- [x] T2.5 A 模型 1 epoch 冒烟训练通过（val acc > 20%）— 2026-10-19（val acc 39.66%）
 
 ### 14.3 全量训练
 
