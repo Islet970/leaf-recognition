@@ -393,3 +393,38 @@
 - 验证结论: 两个训练均已启动（后台运行）
 - 提交: 本条日志随下一步结果一并提交
 - 遗留问题 / 下一步: E2 完成后生成 `pic/spelive-train-test/` 图；E3a 完成后生成 `pic/spec-train-test-all/` 并执行 E3b
+
+---
+
+## [2026-10-19 21:25] T5.3 E2：五类实景训练与测试
+
+- 执行代理: 主代理（训练启动与验证）+ 子代理（绘图工具）
+- 目标: 用视频级划分的实景数据训练 A/B/C/D，并生成标准图与困难测试图
+- 训练数据: train 301（leaf01-03）/ val 79（leaf05）/ test 52（leaf04）
+- 结果（test 52 张）:
+
+| 模型 | best epoch | val acc | val F1 | test acc | test macro-F1 | test CE | top-3 |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| A_mnv3s | 17 | 0.7975 | 0.7320 | 0.6923 | 0.6455 | 0.9015 | 0.9808 |
+| B_mnv2 | 15 | 0.8608 | 0.8036 | **0.8654** | **0.8716** | **0.5813** | 0.9423 |
+| C_leafnet_msff | 6 | 0.8101 | 0.8147 | 0.7308 | 0.7052 | 0.7891 | 1.0000 |
+| D_leafnet_msff_cbam | 2 | 0.8101 | 0.7845 | 0.7500 | 0.7380 | 0.6950 | 0.9808 |
+
+- 困难测试（`_test_hard` leaf04，n=35）:
+  - A 34.29% / F1 0.3206 / CE 1.7299
+  - B 45.71% / F1 0.3985 / CE 1.3133
+  - C 28.57% / F1 0.2896 / CE 1.8759
+  - D **8.57%** / F1 0.0603 / CE 2.2282
+- 说明: 困难集仅 35 张（每类 2–13），D 的 8.57% 方差极大；D 的 best epoch 再次落在训练早期（epoch 2），虽然 patience=20 允许其继续训练，但 val F1 未超过该点。报告需如实写明显著性与不稳定性，不能据此宣称 D 架构失败。
+- 产物:
+  - `runs/live5/{A,B,C,D}_*_seed42/`（各 7 个文件，已校验）
+  - `pic/spelive-train-test/fig4_1_train_loss_ABCD.png`
+  - `pic/spelive-train-test/fig4_2_train_acc_ABCD.png`
+  - `pic/spelive-train-test/fig4_3_test_loss_bar.png`
+  - `pic/spelive-train-test/fig4_4_test_acc_bar.png`
+  - `pic/spelive-train-test/fig4_6_sample_predictions_ABCD.png`
+  - `pic/spelive-train-test/test_hard_ABCD.png`
+  - `pic/spelive-train-test/metrics_test_hard.csv`
+- 验证结论: 通过；主代理目视检查 4 张关键图（样本 3×4、测试 acc、训练 loss、困难 acc/loss），中文与数值正确
+- 提交: `feat(train): 完成 E2 实景训练与图表`
+- 遗留问题 / 下一步: E3a 32 类训练进行中；完成后生成 `pic/spec-train-test-all/` 并做 E3b
