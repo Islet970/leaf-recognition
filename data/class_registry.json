@@ -1,0 +1,77 @@
+{
+  "source": "data/class_map.json",
+  "seed": 42,
+  "subset": "5class",
+  "classes": [
+    {
+      "flavia_label": 4,
+      "py_label": 0,
+      "key": "cercis_chinensis",
+      "zh_name": "紫荆",
+      "scientific": "Cercis chinensis",
+      "common": "Chinese redbud",
+      "range": [
+        1123,
+        1194
+      ],
+      "image_count": 67,
+      "subset": "5class"
+    },
+    {
+      "flavia_label": 12,
+      "py_label": 1,
+      "key": "pittosporum_tobira",
+      "zh_name": "海桐",
+      "scientific": "Pittosporum tobira (Thunb.) Ait. f.",
+      "common": "Japanese cheesewood",
+      "range": [
+        2051,
+        2113
+      ],
+      "image_count": 55,
+      "subset": "5class"
+    },
+    {
+      "flavia_label": 15,
+      "py_label": 2,
+      "key": "cinnamomum_camphora",
+      "zh_name": "香樟",
+      "scientific": "Cinnamomum camphora (L.) J. Presl",
+      "common": "camphortree",
+      "range": [
+        2166,
+        2230
+      ],
+      "image_count": 61,
+      "subset": "5class"
+    },
+    {
+      "flavia_label": 17,
+      "py_label": 3,
+      "key": "osmanthus_fragrans",
+      "zh_name": "桂花",
+      "scientific": "Osmanthus fragrans Lour.",
+      "common": "sweet osmanthus",
+      "range": [
+        2291,
+        2346
+      ],
+      "image_count": 54,
+      "subset": "5class"
+    },
+    {
+      "flavia_label": 20,
+      "py_label": 4,
+      "key": "lagerstroemia_indica",
+      "zh_name": "紫薇",
+      "scientific": "Lagerstroemia indica (L.) Pers.",
+      "common": "Crape myrtle, Crepe myrtle",
+      "range": [
+        2486,
+        2546
+      ],
+      "image_count": 57,
+      "subset": "5class"
+    }
+  ]
+}

@@ -1,0 +1,70 @@
+{
+  "subset": "5class",
+  "seed": 42,
+  "source": "data/class_map.json",
+  "leaves_dir": "data/Leaves",
+  "total_images": 294,
+  "split_totals": {
+    "train": 178,
+    "val": 58,
+    "test": 58
+  },
+  "classes": {
+    "cercis_chinensis": {
+      "flavia_label": 4,
+      "py_label": 0,
+      "total": 67,
+      "train": 41,
+      "val": 13,
+      "test": 13
+    },
+    "pittosporum_tobira": {
+      "flavia_label": 12,
+      "py_label": 1,
+      "total": 55,
+      "train": 33,
+      "val": 11,
+      "test": 11
+    },
+    "cinnamomum_camphora": {
+      "flavia_label": 15,
+      "py_label": 2,
+      "total": 61,
+      "train": 37,
+      "val": 12,
+      "test": 12
+    },
+    "osmanthus_fragrans": {
+      "flavia_label": 17,
+      "py_label": 3,
+      "total": 54,
+      "train": 32,
+      "val": 11,
+      "test": 11
+    },
+    "lagerstroemia_indica": {
+      "flavia_label": 20,
+      "py_label": 4,
+      "total": 57,
+      "train": 35,
+      "val": 11,
+      "test": 11
+    }
+  },
+  "leakage": {
+    "pairwise_disjoint": true,
+    "union_matches_total": true,
+    "cross_class_duplicate_sha256": 0,
+    "duplicate_sha256_within_class": 0,
+    "unique_sha256": 294,
+    "total_images": 294
+  },
+  "expected_5class_check": "PASS",
+  "ignored_out_of_range": 1504,
+  "manifests": {
+    "train": "data/splits/5class/train.csv",
+    "val": "data/splits/5class/val.csv",
+    "test": "data/splits/5class/test.csv",
+    "all": "data/splits/5class/all.csv"
+  }
+}

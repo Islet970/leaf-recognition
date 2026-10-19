@@ -1,0 +1,59 @@
+filename,image_id,flavia_label,py_label,key,zh_name,scientific,common,split,sha256
+1123.jpg,1123,4,0,cercis_chinensis,紫荆,Cercis chinensis,Chinese redbud,val,543e324285995a6054aeb2ae693f9ba09fb1386422cbcfe0add1c1a5e26bc327
+1137.jpg,1137,4,0,cercis_chinensis,紫荆,Cercis chinensis,Chinese redbud,val,950d94b8d64390b3daf7add836f67de7efa340b50ed4e1176231c7a592abfb77
+1139.jpg,1139,4,0,cercis_chinensis,紫荆,Cercis chinensis,Chinese redbud,val,f9fab5b931f72705fea3c88468152faa85e6527fbbc2c80d03d9ec8a2cc6d39b
+1141.jpg,1141,4,0,cercis_chinensis,紫荆,Cercis chinensis,Chinese redbud,val,5b13db638e2c16d0cca81bd13c748fd19f208e6219813d11bfd8f4cff650685c
+1163.jpg,1163,4,0,cercis_chinensis,紫荆,Cercis chinensis,Chinese redbud,val,71386e1b6332605c706a691f9649f93a5acf17b6e020144f8ff9a0d8882e8822
+1166.jpg,1166,4,0,cercis_chinensis,紫荆,Cercis chinensis,Chinese redbud,val,a4ac8ee7794c98f8ec5e8d4f685d56c8556bad0d17858c3262a0f9117de539b4
+1168.jpg,1168,4,0,cercis_chinensis,紫荆,Cercis chinensis,Chinese redbud,val,ffcc58c822f8c7a301eeead1032831b8d22ae1777f4157f0497f2ba3ca7583f1
+1169.jpg,1169,4,0,cercis_chinensis,紫荆,Cercis chinensis,Chinese redbud,val,fab5ec07ecdd0ceb8fa57734f502058938b9019b302165a5352dd314ba96c4c4
+1170.jpg,1170,4,0,cercis_chinensis,紫荆,Cercis chinensis,Chinese redbud,val,27d9b892f7737e867f0d5aa0cb981c59fdccb66a9d9fce6685cdfb681c9301ee
+1171.jpg,1171,4,0,cercis_chinensis,紫荆,Cercis chinensis,Chinese redbud,val,f3b539e0c2475b8cd1c57a18725d0bd5cc8dc323d400f3c81c462ce1f8c62e64
+1173.jpg,1173,4,0,cercis_chinensis,紫荆,Cercis chinensis,Chinese redbud,val,26be7cea5e3b76cce0e75337f6ceb73a77d75df02db43e2bd0a1d40fc51682db
+1176.jpg,1176,4,0,cercis_chinensis,紫荆,Cercis chinensis,Chinese redbud,val,958896fb64caf5009b79e3bfaa16b5be605bf77f8be2843abb14b713435b7ae9
+1182.jpg,1182,4,0,cercis_chinensis,紫荆,Cercis chinensis,Chinese redbud,val,f22106712c1b84917ad9b7334da0c1ae774a1200bac4a79c5aab21f20b7b24e1
+2059.jpg,2059,12,1,pittosporum_tobira,海桐,Pittosporum tobira (Thunb.) Ait. f.,Japanese cheesewood,val,b08354eeec3dc3cec5ac6db08477a61d47b7a3f2e1fd4cc76211b882226bf73b
+2063.jpg,2063,12,1,pittosporum_tobira,海桐,Pittosporum tobira (Thunb.) Ait. f.,Japanese cheesewood,val,ccca39842128b3540dbdec01fd6bb0cb2b53d408d6c2e6913f8e548e3fb0a1a8
+2064.jpg,2064,12,1,pittosporum_tobira,海桐,Pittosporum tobira (Thunb.) Ait. f.,Japanese cheesewood,val,c7e0cd4ea4cb3ee017b025dad64dae70f4a8acafd0113307afcbb10479dc1820
+2069.jpg,2069,12,1,pittosporum_tobira,海桐,Pittosporum tobira (Thunb.) Ait. f.,Japanese cheesewood,val,8dde8a4cc2d3e8ac7c5a29de5995c4a0e15b8cea91836fc0540e5ee5c1e1fab2
+2082.jpg,2082,12,1,pittosporum_tobira,海桐,Pittosporum tobira (Thunb.) Ait. f.,Japanese cheesewood,val,b9537daaa09bff5bdaa83e3c54eccd7c06c1c2dd2f53b74c25e1becbe3d3a5b0
+2084.jpg,2084,12,1,pittosporum_tobira,海桐,Pittosporum tobira (Thunb.) Ait. f.,Japanese cheesewood,val,856907a10b34250a1c436fe73405a26d3897f790ce833309e3b145ece340f176
+2094.jpg,2094,12,1,pittosporum_tobira,海桐,Pittosporum tobira (Thunb.) Ait. f.,Japanese cheesewood,val,a2cf192d975825baa4f62b324a0bd02ac241915dabc359c15c37534a5013568a
+2095.jpg,2095,12,1,pittosporum_tobira,海桐,Pittosporum tobira (Thunb.) Ait. f.,Japanese cheesewood,val,a08464cc6c3161630689635b22ef8a9b4158e2a26cf5aefd92f5c8827aef761a
+2096.jpg,2096,12,1,pittosporum_tobira,海桐,Pittosporum tobira (Thunb.) Ait. f.,Japanese cheesewood,val,66be46ffe3058cbff89b21c1c6b0a4009b6e365977cbe97e2da5c83888ffd15f
+2099.jpg,2099,12,1,pittosporum_tobira,海桐,Pittosporum tobira (Thunb.) Ait. f.,Japanese cheesewood,val,b7240f78a60049519b54f00dad98d5bf1c0660e3ff9ab0376063fa99f34ae00b
+2101.jpg,2101,12,1,pittosporum_tobira,海桐,Pittosporum tobira (Thunb.) Ait. f.,Japanese cheesewood,val,f6c2589ca5dbaa97993aab86880c0481523f3cfbcdbffa8ffaafe61e953332b3
+2167.jpg,2167,15,2,cinnamomum_camphora,香樟,Cinnamomum camphora (L.) J. Presl,camphortree,val,8e82ac282ed5cf040b1da935b1a0791202495d8a5d71c5b38bf1bef3e7d8a36e
+2171.jpg,2171,15,2,cinnamomum_camphora,香樟,Cinnamomum camphora (L.) J. Presl,camphortree,val,44ec0b52a9d347bff96fbca6b32f8655a9e04d4de3b652a8086111231db18879
+2182.jpg,2182,15,2,cinnamomum_camphora,香樟,Cinnamomum camphora (L.) J. Presl,camphortree,val,b7d780cffd510e7a554d4bffb7f96578098b53a945d80bf0bb9cda946638f87d
+2184.jpg,2184,15,2,cinnamomum_camphora,香樟,Cinnamomum camphora (L.) J. Presl,camphortree,val,d5e17bf1ab93ded6e8a505ec458578ef7d0d1741ac3578f12c0dde680b3d5e8c
+2187.jpg,2187,15,2,cinnamomum_camphora,香樟,Cinnamomum camphora (L.) J. Presl,camphortree,val,c4364a0d41556b9578aa2e23cf6a605c396ee0b5a93b24c3b6f28af1834a0980
+2190.jpg,2190,15,2,cinnamomum_camphora,香樟,Cinnamomum camphora (L.) J. Presl,camphortree,val,11c2536d0e87af9fef1590f396cc82c118004e00953a9f92c7c4cc787860caae
+2210.jpg,2210,15,2,cinnamomum_camphora,香樟,Cinnamomum camphora (L.) J. Presl,camphortree,val,3b2fc8fa7045616aa0bbb013acc26d39cd1eb8f912789d11f04ca95f1ff64072
+2212.jpg,2212,15,2,cinnamomum_camphora,香樟,Cinnamomum camphora (L.) J. Presl,camphortree,val,40553eea9b239ad3e38b320b370bf0f46bdcedd461c926a01c4f49f9749476ff
+2213.jpg,2213,15,2,cinnamomum_camphora,香樟,Cinnamomum camphora (L.) J. Presl,camphortree,val,10f21a05b280106a8dbc71eb85832339a027ed6559dba221f0618ccb496a60a7
+2216.jpg,2216,15,2,cinnamomum_camphora,香樟,Cinnamomum camphora (L.) J. Presl,camphortree,val,dc748094c9bae38387700810aa80cb983f27414f5b6daaa0a5209e4bd00237a7
+2224.jpg,2224,15,2,cinnamomum_camphora,香樟,Cinnamomum camphora (L.) J. Presl,camphortree,val,3970b6307d2d6922d3a6c07c9e32e75574e592deccff1c6dcb51545987233ebc
+2230.jpg,2230,15,2,cinnamomum_camphora,香樟,Cinnamomum camphora (L.) J. Presl,camphortree,val,72411116908ed0ecc9e9634dd290325360bf31020524c57859826017a4bbf2a7
+2295.jpg,2295,17,3,osmanthus_fragrans,桂花,Osmanthus fragrans Lour.,sweet osmanthus,val,f95dc39fec4b9c5f63b3cf2488aff57a089fa57f8fbdcea598dc06ebfbb73fd4
+2296.jpg,2296,17,3,osmanthus_fragrans,桂花,Osmanthus fragrans Lour.,sweet osmanthus,val,200ae330efb8b36b95784f6a6787ab01e06a5da17840244d53072dd03a3f8298
+2304.jpg,2304,17,3,osmanthus_fragrans,桂花,Osmanthus fragrans Lour.,sweet osmanthus,val,2b109b31fb8c79724d650d22c54554e2d1290e9bcae72af6780f49c048dc2efc
+2305.jpg,2305,17,3,osmanthus_fragrans,桂花,Osmanthus fragrans Lour.,sweet osmanthus,val,bdb5cfc7490fba5a0c87a3038675883aabcac1b33e2d9d2a4db758e9c1036548
+2307.jpg,2307,17,3,osmanthus_fragrans,桂花,Osmanthus fragrans Lour.,sweet osmanthus,val,4d7c679cacc7ca19725510228c39d2f43c031a12a062bd968aa61f2e0ab95049
+2309.jpg,2309,17,3,osmanthus_fragrans,桂花,Osmanthus fragrans Lour.,sweet osmanthus,val,b2645922fa3dc5584daee815ac29d65e0fdadcd059202611c86cafffae4413a3
+2314.jpg,2314,17,3,osmanthus_fragrans,桂花,Osmanthus fragrans Lour.,sweet osmanthus,val,2f2caa39558f9f5374a7ef3c03296c2ecf2094aacf5f3a4e695e64766f001d1d
+2315.jpg,2315,17,3,osmanthus_fragrans,桂花,Osmanthus fragrans Lour.,sweet osmanthus,val,f46252011e4decdd2db67e69ea0939c5fedb2259da6d140686ffcbae93bc446d
+2324.jpg,2324,17,3,osmanthus_fragrans,桂花,Osmanthus fragrans Lour.,sweet osmanthus,val,6c91a462189c773405ed4355d15eeccf61253d8111b173acfa84c093e942371b
+2334.jpg,2334,17,3,osmanthus_fragrans,桂花,Osmanthus fragrans Lour.,sweet osmanthus,val,38cdf455bde1826c907fc111dfef4f9f087bb44868238e3ac07e895f37e2c9e2
+2345.jpg,2345,17,3,osmanthus_fragrans,桂花,Osmanthus fragrans Lour.,sweet osmanthus,val,8eb9d25562f3546dabbb3992cb4b4f8185db90133349161ed271ee4754b6d55c
+2491.jpg,2491,20,4,lagerstroemia_indica,紫薇,Lagerstroemia indica (L.) Pers.,"Crape myrtle, Crepe myrtle",val,857fb29a7cc901a67788e637132cf9b0c19a9cbbae9484945f852e6f24fb47e1
+2494.jpg,2494,20,4,lagerstroemia_indica,紫薇,Lagerstroemia indica (L.) Pers.,"Crape myrtle, Crepe myrtle",val,6b53e0d68a44fde1fb4d84fd6fa54a58a2ca3a82604e37bec7de8ce2084772ea
+2507.jpg,2507,20,4,lagerstroemia_indica,紫薇,Lagerstroemia indica (L.) Pers.,"Crape myrtle, Crepe myrtle",val,63c8fca5a6aaaed26b9022702c8f893ca2c6fe45dd1aee628cb366b1ebe8483a
+2512.jpg,2512,20,4,lagerstroemia_indica,紫薇,Lagerstroemia indica (L.) Pers.,"Crape myrtle, Crepe myrtle",val,33be35ae0690ab3f072c2e958ea7c19ebe635534636f7c33c10d8890113255f0
+2514.jpg,2514,20,4,lagerstroemia_indica,紫薇,Lagerstroemia indica (L.) Pers.,"Crape myrtle, Crepe myrtle",val,fccb16040db99198eab1ecce4bd21c1269a60a1a57351480186e27eb625c656f
+2518.jpg,2518,20,4,lagerstroemia_indica,紫薇,Lagerstroemia indica (L.) Pers.,"Crape myrtle, Crepe myrtle",val,1569090ce0481d1d0216c9f353b2e529f46618b333e6b14958d9b7ee09b1d208
+2521.jpg,2521,20,4,lagerstroemia_indica,紫薇,Lagerstroemia indica (L.) Pers.,"Crape myrtle, Crepe myrtle",val,0ad6b8280d663a6c3c02da107a4891528ce2474bbdc45da271344f4e8927070e
+2526.jpg,2526,20,4,lagerstroemia_indica,紫薇,Lagerstroemia indica (L.) Pers.,"Crape myrtle, Crepe myrtle",val,7e86c3ac6e16546ff72709ddfa7a239e7176c5ec8f21614a9353f37c2b5d2a41
+2541.jpg,2541,20,4,lagerstroemia_indica,紫薇,Lagerstroemia indica (L.) Pers.,"Crape myrtle, Crepe myrtle",val,d43ce1406dda8f5c6ae6f06942a4ba9bb7467111af53d51f952b69878c630d6e
+2544.jpg,2544,20,4,lagerstroemia_indica,紫薇,Lagerstroemia indica (L.) Pers.,"Crape myrtle, Crepe myrtle",val,026e7b452c3180c94acc5190f27b4bd1f463c1fe055b8d9d5b65ae27d7185606
+2546.jpg,2546,20,4,lagerstroemia_indica,紫薇,Lagerstroemia indica (L.) Pers.,"Crape myrtle, Crepe myrtle",val,258cba95eb445bf542a06b312e490ded3b290f183a4a93d697bbe074c31af879

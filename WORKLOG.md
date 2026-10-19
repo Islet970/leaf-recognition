@@ -105,3 +105,24 @@
 - 验证结论: 通过
 - 提交: `feat(data): 实现数据集与 DataLoader 管道`
 - 遗留问题 / 下一步: T2.3 训练脚本；T2.4 代码审查
+
+---
+
+## [2026-10-19 13:52] T1.3 + T1.4 构建五类划分与实景清单
+
+- 执行代理: 子代理（编码，opus / medium）+ 主代理复核
+- 目标: 生成五类注册表、train/val/test 清单与 791 行实景测试清单
+- 改动:
+  - 新增 `tools/build_dataset.py`
+  - 新增 `data/class_registry.json`（五类，py_label 0–4）
+  - 新增 `data/splits/5class/{train,val,test,all}.csv` 与 `split_stats.json`
+  - 新增 `data/splits/real/all.csv`（791 行，split=test）
+  - `data/dataset/5class/` 物化 294 个硬链接（已被 .gitignore 忽略，不入库）
+- 命令与结果:
+  - `build_dataset.py --classes 4,12,15,17,20 --subset 5class --seed 42 --materialize` → 294 → 178/58/58
+  - `build_dataset.py --real-dir data/leaf --subset real` → 791 → 163/168/160/145/155
+  - 主代理独立复核：三个 split 两两不相交、并集等于 all.csv；各类 41/33/37/32/35（train）、13/11/12/11/11（val/test）；注册表 image_count 67/55/61/54/57；实景 791 行全部 split=test、filename 唯一且为相对路径
+  - SHA-256 跨类重复 0，unique = 294；实景 unique = 791
+- 验证结论: 通过
+- 提交: `feat(data): 构建五类划分与实景测试清单`
+- 遗留问题 / 下一步: 实景清单 `filename` 为相对路径（如 `cercis_test/leaf01_000000.jpg`），后续评测用 `data/leaf/<filename>` 拼接
