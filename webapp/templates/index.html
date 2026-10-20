@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="校园叶片识别与可解释性可视化系统：摄像头实时识别、上传识别、实验数据看板。">
+  <title>校园叶片识别与可解释性可视化系统</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+  <a class="skip-link" href="#mainContent">跳到主要内容</a>
+
+  <header class="site-header">
+    <div class="container header-inner">
+      <a class="brand" href="#" data-section-link="recognize" aria-label="返回识别首页">
+        <span class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 32 32" width="30" height="30" role="img" aria-hidden="true">
+            <path d="M27 5C17 5 9 9 6 17c-1.4 3.7-1.2 7.2-.2 9.3 2.1 1 5.6 1.2 9.3-.2C23 23 27 15 27 5Z" fill="currentColor" opacity=".95"/>
+            <path d="M6.5 25.5C11 19 16 14.5 23 11" fill="none" stroke="#f4faf5" stroke-width="1.8" stroke-linecap="round"/>
+          </svg>
+        </span>
+        <span class="brand-text">
+          <strong>叶知</strong>
+          <small>校园叶片识别与可解释性可视化系统</small>
+        </span>
+      </a>
+
+      <button id="navToggle" class="nav-toggle" type="button" aria-expanded="false" aria-controls="primaryNav">
+        <span class="sr-only">打开导航菜单</span>
+        <span class="nav-toggle-bars" aria-hidden="true"><i></i><i></i><i></i></span>
+      </button>
+
+      <nav id="primaryNav" class="primary-nav" aria-label="主导航">
+        <button type="button" class="nav-link is-active" data-section-link="recognize" aria-current="page">识别</button>
+        <button type="button" class="nav-link" data-section-link="gallery">数据看板</button>
+        <button type="button" class="nav-link" data-section-link="system">系统操作</button>
+      </nav>
+    </div>
+  </header>
+
+  <main id="mainContent" class="container main-content">
+
+    <!-- ============ 识别 ============ -->
+    <section id="section-recognize" class="page-section" aria-labelledby="recognizeTitle">
+      <div class="section-head">
+        <div>
+          <p class="eyebrow">Leaf Recognition</p>
+          <h1 id="recognizeTitle">校园叶片识别与可解释性可视化系统</h1>
+          <p class="section-desc">打开摄像头或上传图片，选择模型即可查看 Top-k 识别结果、置信度与 Grad-CAM 关注区域。</p>
+        </div>
+        <span class="engine-badge" id="engineBadge" role="status">正在加载模型…</span>
+      </div>
+
+      <div class="recognize-grid">
+        <!-- 左卡片：采集 -->
+        <article class="card capture-card">
+          <div class="card-head">
+            <div>
+              <h2>图像采集</h2>
+              <p class="card-subtitle">摄像头实时识别或上传本地图片</p>
+            </div>
+          </div>
+
+          <div class="tab-list" role="tablist" aria-label="识别方式">
+            <button id="tab-camera" class="tab is-active" type="button" role="tab"
+                    aria-selected="true" aria-controls="panel-camera" data-tab="camera">摄像头</button>
+            <button id="tab-upload" class="tab" type="button" role="tab"
+                    aria-selected="false" aria-controls="panel-upload" data-tab="upload" tabindex="-1">上传图片</button>
+          </div>
+
+          <div id="panel-camera" role="tabpanel" aria-labelledby="tab-camera" class="tab-panel">
+            <div class="camera-stage" id="cameraStage">
+              <video id="cameraVideo" autoplay playsinline muted aria-label="摄像头实时画面"></video>
+              <img id="cameraSnapshot" class="camera-snapshot" alt="摄像头拍摄快照" hidden>
+              <div class="viewfinder" aria-hidden="true"><span>将叶片置于框内</span></div>
+              <div id="cameraPlaceholder" class="camera-placeholder">
+                <span class="placeholder-leaf" aria-hidden="true"></span>
+                <p>摄像头未开启</p>
+                <small>请通过 http://127.0.0.1:5000 访问并允许相机权限</small>
+              </div>
+            </div>
+
+            <p id="cameraStatus" class="camera-status" role="status">摄像头未开启</p>
+
+            <div class="btn-row">
+              <button id="cameraStartBtn" class="btn btn-primary" type="button">开始</button>
+              <button id="cameraStopBtn" class="btn" type="button" disabled>停止</button>
+              <button id="cameraPhotoBtn" class="btn" type="button" disabled>拍照</button>
+            </div>
+            <canvas id="captureCanvas" hidden aria-hidden="true"></canvas>
+          </div>
+
+          <div id="panel-upload" role="tabpanel" aria-labelledby="tab-upload" class="tab-panel" hidden>
+            <div id="dropzone" class="dropzone" tabindex="0" role="button" aria-label="选择或拖拽 JPG、PNG 图片">
+              <input id="fileInput" type="file" accept="image/jpeg,image/png,.jpg,.jpeg,.png" hidden>
+              <span class="dropzone-icon" aria-hidden="true"></span>
+              <p><strong>拖拽图片到这里</strong>，或点击选择文件</p>
+              <small>支持 JPG / PNG，单张不超过 10 MB</small>
+            </div>
+
+            <div id="uploadPreviewWrap" class="upload-preview" hidden>
+              <img id="uploadPreview" alt="上传图片预览">
+              <div class="upload-preview-meta">
+                <span id="uploadFileName">—</span>
+                <button id="clearUploadBtn" class="btn btn-small" type="button">清除</button>
+              </div>
+            </div>
+
+            <p id="uploadStatus" class="camera-status" role="status">选择图片后将自动识别</p>
+          </div>
+        </article>
+
+        <!-- 右卡片：模型与结果 -->
+        <article class="card result-card">
+          <div class="card-head">
+            <div>
+              <h2>识别结果</h2>
+              <p class="card-subtitle">切换模型组与模型，查看置信度与可解释性</p>
+            </div>
+          </div>
+
+          <div class="control-group">
+            <span class="control-label" id="groupLabel">模型组</span>
+            <div id="groupSwitch" class="group-switch" role="tablist" aria-labelledby="groupLabel"></div>
+          </div>
+
+          <div class="control-group">
+            <span class="control-label">模型</span>
+            <div id="modelPills" class="model-pills" role="group" aria-live="polite"></div>
+          </div>
+
+          <label class="switch-row" for="gradcamToggle">
+            <span class="switch">
+              <input id="gradcamToggle" type="checkbox" checked>
+              <span class="switch-track" aria-hidden="true"><span class="switch-thumb"></span></span>
+            </span>
+            <span class="switch-text">
+              <strong>叠加 Grad-CAM</strong>
+              <small>显示模型关注的叶片区域（后端可能不支持）</small>
+            </span>
+          </label>
+
+          <div id="resultEmpty" class="empty-state">
+            <span class="empty-icon" aria-hidden="true"></span>
+            <p>还没有识别结果</p>
+            <small>开启摄像头或上传一张叶片图片开始识别</small>
+          </div>
+
+          <div id="resultBody" class="result-body" hidden>
+            <div class="result-hero">
+              <div class="result-main">
+                <span class="result-label">识别为</span>
+                <strong id="resultZh">—</strong>
+                <em id="resultSci"></em>
+                <span id="resultModelTag" class="result-model-tag"></span>
+              </div>
+              <div class="result-latency">
+                <span>推理耗时</span>
+                <b id="resultLatency">—</b>
+              </div>
+            </div>
+
+            <div id="lowConfidenceWarning" class="warning-banner" role="alert" hidden>
+              置信度低于 50%，结果可能不可靠，请调整叶片位置或更换图片后重试。
+            </div>
+
+            <ol id="topkList" class="topk-list" aria-label="Top-k 置信度"></ol>
+
+            <figure id="gradcamPanel" class="gradcam-panel" hidden>
+              <figcaption>Grad-CAM 关注区域</figcaption>
+              <img id="gradcamImage" alt="Grad-CAM 热力图" hidden>
+              <p id="gradcamUnavailable" class="gradcam-unavailable" hidden>Grad-CAM 暂不可用</p>
+            </figure>
+          </div>
+
+          <section class="legend-block" aria-labelledby="legendTitle">
+            <div class="legend-head">
+              <h3 id="legendTitle">类别图例</h3>
+              <span id="legendCount" class="legend-count"></span>
+            </div>
+            <input id="legendSearch" class="legend-search" type="search" placeholder="搜索中文名 / 学名 / 类别 key" hidden
+                   aria-label="搜索类别">
+            <ul id="classLegend" class="class-legend"></ul>
+          </section>
+        </article>
+      </div>
+    </section>
+
+    <!-- ============ 数据看板 ============ -->
+    <section id="section-gallery" class="page-section" aria-labelledby="galleryTitle" hidden>
+      <div class="section-head">
+        <div>
+          <p class="eyebrow">Experiment Gallery</p>
+          <h1 id="galleryTitle">数据看板</h1>
+          <p class="section-desc">按 <code>pic/</code> 子目录浏览训练图表、指标 CSV、报告文档与实验截图。</p>
+        </div>
+        <button id="galleryRefresh" class="btn" type="button">刷新数据</button>
+      </div>
+
+      <div id="galleryStatus" class="loading-state" role="status">正在加载数据看板…</div>
+      <div id="galleryTabs" class="gallery-tabs" role="tablist" aria-label="数据目录" hidden></div>
+      <div id="galleryPanel" class="gallery-panel" role="tabpanel" aria-label="数据目录内容" aria-live="polite"></div>
+    </section>
+
+    <!-- ============ 系统操作 ============ -->
+    <section id="section-system" class="page-section" aria-labelledby="systemTitle" hidden>
+      <div class="section-head">
+        <div>
+          <p class="eyebrow">System Demo</p>
+          <h1 id="systemTitle">系统操作</h1>
+          <p class="section-desc">以下按钮仅用于界面演示，不会上传数据或启动真实训练。</p>
+        </div>
+        <span class="demo-badge">演示模式</span>
+      </div>
+
+      <div class="system-grid">
+        <article class="card demo-card">
+          <div class="demo-icon" aria-hidden="true">+</div>
+          <h2>添加数据</h2>
+          <p>向叶片数据集追加新的图片样本，用于后续模型训练与评估。</p>
+          <ul class="demo-points">
+            <li>演示功能，未接入真实数据接口</li>
+            <li>不会写入任何文件或上传用户数据</li>
+          </ul>
+          <button id="addDataBtn" class="btn btn-primary" type="button">添加数据</button>
+        </article>
+
+        <article class="card demo-card">
+          <div class="demo-icon demo-icon-train" aria-hidden="true">▶</div>
+          <h2>模型训练</h2>
+          <p>使用当前数据集重新训练 A/B/C/D 四个模型并更新测试指标。</p>
+          <ul class="demo-points">
+            <li>演示功能，不会启动真实训练进程</li>
+            <li>不会写入 <code>runs/</code> 或占用 CPU 资源</li>
+          </ul>
+          <button id="trainBtn" class="btn btn-primary" type="button">模型训练</button>
+        </article>
+      </div>
+
+      <p class="system-note">
+        真实训练请使用命令行：<code>python -m src.train --models A B C D</code>，训练完成后由主代理运行图表生成脚本。
+      </p>
+    </section>
+
+  </main>
+
+  <footer class="site-footer">
+    <div class="container footer-inner">
+      <span>校园叶片识别与可解释性可视化系统 · 离线演示版</span>
+      <span>Flavia 叶片数据集 · CPU 推理</span>
+    </div>
+  </footer>
+
+  <!-- Toast -->
+  <div id="toastContainer" class="toast-container" aria-live="polite" aria-atomic="false"></div>
+
+  <!-- 通用确认 / 进度弹窗 -->
+  <div id="modalBackdrop" class="modal-backdrop" hidden>
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle" aria-describedby="modalText">
+      <h2 id="modalTitle">确认操作</h2>
+      <p id="modalText"></p>
+      <div id="trainProgressWrap" class="progress-wrap" hidden>
+        <div class="progress-track" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+          <div id="trainProgressBar" class="progress-bar"></div>
+        </div>
+        <span id="trainProgressText">0%</span>
+      </div>
+      <div id="modalActions" class="modal-actions">
+        <button id="modalCancel" class="btn" type="button">取消</button>
+        <button id="modalConfirm" class="btn btn-primary" type="button">确认</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 图片灯箱 -->
+  <div id="lightbox" class="lightbox" hidden role="dialog" aria-modal="true" aria-label="图片预览">
+    <div class="lightbox-toolbar">
+      <span id="lightboxCaption" class="lightbox-caption"></span>
+      <div class="lightbox-actions">
+        <button id="lightboxPrev" class="btn btn-small" type="button" aria-label="上一张">上一张</button>
+        <button id="lightboxNext" class="btn btn-small" type="button" aria-label="下一张">下一张</button>
+        <a id="lightboxDownload" class="btn btn-small" href="#" download>下载原图</a>
+        <button id="lightboxClose" class="btn btn-small" type="button">关闭</button>
+      </div>
+    </div>
+    <img id="lightboxImage" class="lightbox-image" alt="">
+    <p id="lightboxHint" class="lightbox-hint">按 Esc 关闭，← / → 切换图片</p>
+  </div>
+
+  <script src="{{ url_for('static', filename='vendor/echarts.min.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/gallery.js') }}"></script>
+</body>
+</html>

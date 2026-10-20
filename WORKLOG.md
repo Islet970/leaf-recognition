@@ -574,3 +574,31 @@
 - 验证: 计划文档自检，章节编号与 API 表完整；未创建 webapp 代码
 - 提交: `docs(plan): 完善网页设计与技术栈计划`
 - 遗留问题 / 下一步: 按 T7.1–T7.6 实现网页
+
+---
+
+## [2026-10-20 21:00] T7.1–T7.6 原生前端网页实现
+
+- 执行代理: 子代理（后端，opus / medium）、子代理（前端，opus / medium）、子代理（独立审查，opus / medium）、主代理（集成与验证）
+- 目标: 实现原生前端网页：摄像头/上传识别、模型切换、演示按钮、pic 数据看板
+- 改动:
+  - 后端：`webapp/__init__.py`、`app.py`、`model_service.py`、`gallery_service.py`
+  - 前端：`webapp/templates/index.html`、`static/css/style.css`、`static/js/app.js`、`static/js/gallery.js`
+  - 本地图表库：`webapp/static/vendor/echarts.min.js`（5.6.0，无 CDN）
+  - 截图：`results/screenshots/{recognition,upload_result,gallery,system_actions,demo_toast}.png`
+- 功能:
+  - 摄像头实时识别（700 ms 轮询、防重叠、切后台/切分区暂停/停止、权限错误提示）
+  - 上传 JPG/PNG 识别（10 MB 限制、中心裁正方形、Top-k/置信度/耗时）
+  - A/B/C/D 模型切换与五类/32 类模型组切换
+  - 添加数据/模型训练演示按钮：只弹提示/假进度，不写文件、不启动训练
+  - pic 数据看板：扫描 6 个目录、图片灯箱、CSV 自动 ECharts（metrics/ablation）
+- 验证:
+  - 真实 Flask 服务（127.0.0.1:5000，8 个模型）端到端：页面、`/api/health`、`/api/models`（含 param_count）、`/api/predict`（1123.jpg→紫荆 92.5%）、`/api/predict_frame`、`/api/predict_all`（available=true）、`/api/gallery`、`/pic`、两个 demo 端点、GIF/坏图 400、路径穿越 404 → ALL PASS
+  - 前端 Playwright：57/57 PASS，无 console/page error；覆盖模型切换、上传、摄像头假流、切分区停摄像头、看板、灯箱、演示按钮、CSV 失败态、移动端
+  - 后端 test_client：8 模型加载、参数量、格式/像素上限、CSV 1 MB/200 行限制、500 脱敏 → 通过
+- 审查与修复:
+  - 发现 6 条重要问题：跨组同名模型匹配、离开识别页不停摄像头、startCamera 竞态、上传/摄像头请求序号冲突、`predict_all` 缺 available、Grad-CAM 未实现
+  - 前 5 类已修复；Grad-CAM 与“测试样例行”按本轮范围 descope，界面/接口明确标注“暂不可用”
+- 服务: `http://127.0.0.1:5000` 正在运行
+- 提交: `feat(webapp): 实现原生前端叶片识别与 pic 数据看板`
+- 遗留问题 / 下一步: Grad-CAM 可视化（可选）、真实摄像头截图（需人工）、报告 4.5 素材整理

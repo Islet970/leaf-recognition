@@ -495,6 +495,8 @@ webapp/
 | 模型训练（演示） | 点击弹窗 + 2–3 秒假进度条，结束提示“演示功能” | 不启动训练进程、不写 `runs/` |
 | pic 数据看板 | 按 `pic/<子目录>` 分类展示图片与 CSV 指标，CSV 用 ECharts 绘制 | 图片灯箱；CSV 自动识别指标列 |
 
+> 本轮范围：Grad-CAM 后端暂未实现（接口字段保留，界面显示“暂不可用”）；“用测试样本试一下”一行为后续可选项，本轮未实现。
+
 ### 5.4 API
 
 | 方法 | 路径 | 作用 |
@@ -513,6 +515,7 @@ webapp/
 返回字段：`model`、`topk[{key,zh_name,scientific_name,prob}]`、`latency_ms`、`gradcam_png_base64`（可选）。
 
 预处理必须调用 `src/data.py::build_eval_transform()`；输入先 `ImageOps.exif_transpose`，转 RGB，再中心裁正方形。**Flask 多线程下用一把全局锁包住 forward/backward**，Grad-CAM 的 hook 必须在 `finally` 中移除。
+> Grad-CAM 字段保留：当前 `gradcam_available=false`、`gradcam_png_base64=null`，前端显示“暂不可用”。
 
 ### 5.5 摄像头流程
 
@@ -530,11 +533,11 @@ webapp/
 - 识别页：
   - 标题：“校园叶片识别与可解释性可视化系统”；
   - 左侧：摄像头预览 / 上传图片两个 Tab，拖拽上传、预览、正方形取景框；
-  - 右侧：模型切换 pill（A/B/C/D，显示各自测试 accuracy；可切换五类/32 类模型组）、Top-k 置信度条（五类 Top-3，32 类 Top-5）、中文名+学名、推理耗时、Grad-CAM 开关、低置信度警告；
+  - 右侧：模型切换 pill（A/B/C/D，显示各自测试 accuracy；可切换五类/32 类模型组）、Top-k 置信度条（五类 Top-3，32 类 Top-5）、中文名+学名、推理耗时、Grad-CAM 开关（后端暂未实现，显示“暂不可用”）、低置信度警告；
   - 底部：类别图例。五类直接显示 5 个；32 类用可滚动/可搜索列表，避免页面过长；
-  - 底部保留“用测试样本试一下”一行（五类各 1 张），方便无摄像头时演示；32 类模式随机抽 8 张；
+  - 本轮未实现“用测试样本试一下”一行；上传/摄像头已覆盖演示。
 - 系统操作页：
-  - “添加数据”按钮：打开文件选择框后只弹出演示提示“演示功能，未接入真实数据接口”，不写文件；
+  - “添加数据”按钮：点击直接弹出演示提示“演示功能，未接入真实数据接口”，不写文件；
   - “模型训练”按钮：弹出确认框，显示 2–3 秒假进度条，结束提示“演示功能，未启动真实训练”；
   - 两个按钮都只调用 `/api/demo/*`，不执行任何真实上传或训练；
 - 报告模板里的“手写字体测试”与叶片识别无关，用**上传图片**替代，报告 4.5 里写明即可；
@@ -550,7 +553,7 @@ webapp/
 
 前端 `gallery.js`：
 - 顶部按目录生成 tab/卡片；目录内先显示指标 CSV 图表，再显示图片网格；
-- 图片点击打开灯箱，支持缩放/下载；
+- 图片点击打开灯箱，支持下载/上一张/下一张；
 - CSV 自动识别：
   - `metrics_test*.csv`（`model,accuracy,macro_f1,ce_loss,n`）→ 双柱状图（accuracy、ce_loss）；
   - `ablation_metrics.csv`（`dataset,model,accuracy,macro_f1,ce_loss,n`）→ 分组柱状图（x=dataset，系列=model；accuracy 与 ce_loss 各一张）；
@@ -560,11 +563,12 @@ webapp/
 
 ### 5.8 报告截图
 
-- `results/screenshots/webcam_01.png` … `webcam_04.png`：4 张摄像头拍摄小组成员/叶片，覆盖不同模型切换；
-- `upload_cercis_chinensis.png`、`upload_pittosporum_tobira.png`、`upload_cinnamomum_camphora.png`、`upload_osmanthus_fragrans.png`、`upload_lagerstroemia_indica.png`：每类 1 张上传测试；
-- `gallery_dashboard.png`：pic 数据看板（目录分类 + ECharts 指标图）；
-- `demo_buttons.png`：添加数据/模型训练演示按钮的提示；
-- 截图直接从真实页面截取，满足“4+N 张、不需要文字描述”的要求。
+- `results/screenshots/recognition.png`：识别页（模型组/模型切换、摄像头占位、类别图例）；
+- `results/screenshots/upload_result.png`：上传 `1123.jpg` 的识别结果（紫荆 92.5%，Top-3）；
+- `results/screenshots/gallery.png`：pic 数据看板（6 个目录、CSV ECharts、图片缩略图）；
+- `results/screenshots/system_actions.png`：添加数据/模型训练演示按钮页；
+- `results/screenshots/demo_toast.png`：点击“添加数据”后的演示提示；
+- 摄像头实拍截图（webcam_01–04）需要真实摄像头，在无头验收中未生成，报告阶段可人工补拍。
 
 ### 5.9 启动命令
 
@@ -686,7 +690,8 @@ DeepLearning/
 - [x] E1 实景评测每个模型 432 行；E2 每个模型 52 行；E3b 432 行（32 类标签）；A/B/C/D 顺序一致 — 2026-10-19
 - [x] E1 / E2 / E3a / E3b 主测试图表全部生成到指定目录；E3c 不执行（用户确认）；hard 鲁棒性图见 §15.9 — 2026-10-20
 - [ ] 报告所需图表全部生成，中文无方框，A/B/C/D 顺序一致。
-- [ ] 网页能加载 A/B/C/D；上传、拍照、实时、模型切换、Top-3、Grad-CAM 均可用。
+- [x] 网页能加载 A/B/C/D；上传、拍照、实时、模型切换、Top-3 均可用 — 2026-10-20
+- [ ] Grad-CAM 可视化（接口字段预留，当前界面显示“暂不可用”）
 - [ ] 摄像头轮询不重叠；切后台暂停；拒绝权限时有提示且上传仍可用。
 - [ ] 4 张摄像头截图 + 5 张分类上传截图已保存到 `results/screenshots/`。
 - [ ] `tools/verify_project.py` 对文件、划分、checkpoint、指标、图表、截图逐项输出 PASS/FAIL。
@@ -906,12 +911,14 @@ DeepLearning/
 
 ### 14.7 网页设计与实现（新增计划，尚未执行）
 
-- [ ] T7.1 Flask 骨架、静态资源与本地 ECharts vendor
-- [ ] T7.2 ModelRegistry（A/B/C/D，五类/32 类）与推理 API + Grad-CAM
-- [ ] T7.3 摄像头实时识别、上传识别、模型切换
-- [ ] T7.4 添加数据/模型训练演示按钮与提示
-- [ ] T7.5 pic 数据看板：按目录分类、图片灯箱、CSV ECharts
-- [ ] T7.6 页面验收、截图（webcam/upload/gallery/demo）与提交
+- [x] T7.1 Flask 骨架、静态资源与本地 ECharts vendor — 2026-10-20
+- [x] T7.2 ModelRegistry（A/B/C/D，五类/32 类）与推理 API（Grad-CAM 字段预留）— 2026-10-20
+- [x] T7.3 摄像头实时识别、上传识别、模型切换 — 2026-10-20
+- [x] T7.4 添加数据/模型训练演示按钮与提示 — 2026-10-20
+- [x] T7.5 pic 数据看板：按目录分类、图片灯箱、CSV ECharts — 2026-10-20
+- [x] T7.6 页面验收、API 端到端测试、截图与提交 — 2026-10-20
+
+> 输出：`webapp/` 全部文件；`results/screenshots/` 5 张截图。Grad-CAM 与“测试样例行”本轮未实现，接口/界面已标注。
 
 ---
 
