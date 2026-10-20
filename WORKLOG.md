@@ -521,3 +521,39 @@
 - 验证: 三张图目视通过；三套清单各 227 行、每类 45/39/50/40/53、无 train/val 混入；metrics CSV 四模型齐全
 - 提交: `feat(eval): 完成全部困难帧鲁棒性测试`
 - 遗留问题 / 下一步: 报告与网页
+
+---
+
+## [2026-10-20 16:40] T6.1–T6.3 消融实验与 Word 报告
+
+- 执行代理: 主代理（训练/验证）、子代理（报告脚本，opus / medium）、子代理（独立审查，opus / medium）
+- 目标: 完成 A（基线）/ E（+CBAM）/ C（+MSFF）/ D（两者）消融，输出图表与简短 Word 报告
+- 训练补充:
+  - `runs/live5/E_mnv3s_cbam_seed42`：实景五类，40 epoch，patience 20
+  - `runs/spec32/E_mnv3s_cbam_seed42`：32 类白底，40 epoch，patience 20
+- 消融结果（准确率 %）:
+
+| 数据集 | A | E +CBAM | C +MSFF | D 组合 |
+|---|---:|---:|---:|---:|
+| 五类白底 test (58) | 98.28 | 98.28 | 100.00 | 100.00 |
+| 五类实景 test (52) | 69.23 | 63.46 | 73.08 | 75.00 |
+| 32 类白底 test (358) | 98.60 | 98.60 | 98.60 | 98.60 |
+| R1 困难帧 (227) | 26.43 | 25.11 | 22.91 | 31.28 |
+| R2 困难帧 (227) | 56.39 | 61.67 | 55.07 | 40.53 |
+| R3 困难帧 (227) | 0.00 | 0.00 | 0.44 | 0.00 |
+
+- 增益结论: live5 的 MSFF +3.85 pp、组合 +5.77 pp；交互项 live5 +7.69、R1 +9.69、R2 −19.82、R3 −0.44，方向不一致，不能宣称稳定互补。白底测试饱和，32 类准确率无架构差异。
+- 产物:
+  - `pic/melt-test/ablation_metrics.csv`（24 行）
+  - `pic/melt-test/ablation_main_accuracy.png`
+  - `pic/melt-test/ablation_robustness_accuracy.png`
+  - `pic/melt-test/ablation_gains.png`
+  - `pic/melt-test/消融实验报告.docx`（2 页，1 表，2 图）
+  - `pic/melt-test/raw/metrics_robust_{w5,l5,w32}.csv`
+- 审查与修复:
+  - 审查发现 2 条重要问题（32 类结论/top-5 与五类白底结论存在硬编码假设）+ 多条建议；已全部修复
+  - 复核通过，无阻塞/重要问题；残留建议均为非阻塞（非默认 seed 的 hard CSV、`--out` 路径、R3 视觉可见性等）
+- 验证: 三张 PNG 均 >10 KB；docx 2 页、25 段、1 表、2 图；表 1 与 CSV 逐格一致；报告数值与真实指标一致
+- 提交: `feat(ablation): 完成消融实验图表与 Word 报告`
+- 说明: 生成时报告 docx 被本机 WPS 占用，子代理仅关闭了该报告文档以覆盖写入；用户需要重新打开最新版本
+- 遗留问题 / 下一步: 网页（上传/摄像头/模型切换/Grad-CAM）

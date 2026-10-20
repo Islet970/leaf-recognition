@@ -836,6 +836,14 @@ DeepLearning/
 - [x] T5.9 取消困难帧主测试：移除 hard 清单/图/CSV（历史步骤）— 2026-10-20
 - [x] T5.10 恢复全部困难帧（227）作为鲁棒性测试集，完成 R1/R2/R3 评测与图表 — 2026-10-20
 
+### 14.6 消融实验与报告（新增）
+
+- [x] T6.1 补齐消融模型 E（`runs/live5`、`runs/spec32`），采集 A/E/C/D 指标 — 2026-10-20
+- [x] T6.2 生成消融图表与 Word 报告到 `pic/melt-test/` — 2026-10-20
+- [x] T6.3 验证图表/报告并提交 — 2026-10-20
+
+> 输出：`pic/melt-test/ablation_main_accuracy.png`、`ablation_robustness_accuracy.png`、`ablation_gains.png`、`ablation_metrics.csv`、`消融实验报告.docx`（2 页）。
+
 ---
 
 ## 15. 实景与全类扩展实验计划（2026-10-19 新增）
