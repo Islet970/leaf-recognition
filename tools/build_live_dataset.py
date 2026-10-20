@@ -2,26 +2,30 @@
 # -*- coding: utf-8 -*-
 """Build live-scene manifests for ``data/leaf`` and run leakage checks.
 
-The live frames live in ``data/leaf/<prefix>_test`` (normal).  File names
-look like ``leaf04_000010.jpg``; ``leaf01``-``leaf05`` identify the source
-video.
+The live frames live in ``data/leaf/<prefix>_test`` (normal) and
+``data/leaf/<prefix>_test_hard`` (hard).  File names look like
+``leaf04_000010.jpg``; ``leaf01``-``leaf05`` identify the source video.
 
-Hard frames live in ``data/leaf/<prefix>_test_hard`` but are intentionally
-**not used for testing**: hard-frame testing was cancelled because the
-per-class counts (2-13, with pittosporum at only 2) are too imbalanced.  The
-original hard images stay on disk untouched; this script ignores the
-``*_test_hard`` directories entirely and never writes ``hard_test.csv``.
+Hard frames: **all** 227 ``*_test_hard`` frames are written to
+``hard_test.csv`` and are used **only as a robustness / stress test set**
+(per-class counts 45/39/50/40/53, which are more balanced than the old
+rule that kept only leaf04).  They never enter train/val.  Because the
+leaf01-leaf03 hard frames come from the same videos as the live training
+split, hard_test results must be interpreted as a robustness check, **not**
+as an independent validation set.
 
 Modes
 -----
 ``--mode all``
-    Writes ``test.csv`` (all normal frames, 432 rows).  Used by E1 (W5) and
-    E3b (W32).
+    Writes ``test.csv`` (all normal frames, 432 rows) and
+    ``hard_test.csv`` (all hard frames, 227 rows, not filtered by video).
+    Used by E1 (W5) and E3b (W32).
 
 ``--mode video-split``
     Writes a video-level split that keeps every source video in one split:
-    train = leaf01/02/03, val = leaf05, test = leaf04.  Normal frames only;
-    hard frames are not part of any split.
+    train = leaf01/02/03 (normal, 301), val = leaf05 (normal, 79),
+    test = leaf04 (normal, 52), plus ``hard_test.csv`` with **all** hard
+    frames (227, not filtered by video).
 
 ``py_label`` and ``flavia_label`` always come from the registry, matched by
 ``key``; they are never inferred from directory order.
@@ -66,15 +70,21 @@ PREFIX_TO_KEY = {
 }
 PREFIX_ORDER = ["camphor", "cercis", "lagerstroemia", "osmanthus", "pittosporum"]
 
-# plans.md §1.5: 432 normal frames (hard frames are not used for testing).
+# plans.md §1.5: 432 normal frames, all used for the normal manifests.
 EXPECTED_ALL_NORMAL = {
     "camphor": 83, "cercis": 96, "lagerstroemia": 100,
     "osmanthus": 86, "pittosporum": 67,
 }
+# plans.md §1.5: all 227 hard frames form the robustness/stress test set.
+EXPECTED_ALL_HARD = {
+    "camphor": 45, "cercis": 39, "lagerstroemia": 50,
+    "osmanthus": 40, "pittosporum": 53,
+}
 
 # plans.md §1.5: train = leaf01/02/03, val = leaf05, test = leaf04.
-# Only normal frames are assigned; hard frames are excluded entirely.
-VIDEO_SPLIT_TOTALS = {"train": 301, "val": 79, "test": 52}
+# Hard frames always form their own hard_test split (all videos, 227 rows)
+# and are never assigned to train/val.
+VIDEO_SPLIT_TOTALS = {"train": 301, "val": 79, "test": 52, "hard_test": 227}
 EXPECTED_VIDEO_COUNTS = {
     "train": {
         "camphor": 61, "cercis": 63, "lagerstroemia": 76,
@@ -88,11 +98,14 @@ EXPECTED_VIDEO_COUNTS = {
         "camphor": 6, "cercis": 12, "lagerstroemia": 13,
         "osmanthus": 7, "pittosporum": 14,
     },
+    "hard_test": EXPECTED_ALL_HARD,
 }
 EXPECTED_VIDEO_PREFIXES = {
     "train": {"leaf01", "leaf02", "leaf03"},
     "val": {"leaf05"},
     "test": {"leaf04"},
+    # All hard frames are used, so every source video must be present.
+    "hard_test": {"leaf01", "leaf02", "leaf03", "leaf04", "leaf05"},
 }
 PREFIX_TO_SPLIT = {
     "leaf01": "train", "leaf02": "train", "leaf03": "train",
@@ -100,8 +113,9 @@ PREFIX_TO_SPLIT = {
 }
 
 FRAME_RE = re.compile(r"^(leaf\d{2})_(\d{6})\.jpg$", re.IGNORECASE)
-OUTPUT_SPLITS = {"all": ("test",),
-                 "video-split": ("train", "val", "test")}
+OUTPUT_SPLITS = {"all": ("test", "hard_test"),
+                 "video-split": ("train", "val", "test", "hard_test")}
+NORMAL_SPLITS = ("train", "val", "test")
 
 
 def fail(message: str) -> None:
@@ -161,38 +175,42 @@ def load_registry(path: Path) -> dict[str, dict]:
 # --------------------------------------------------------------------------- #
 # Frame discovery
 # --------------------------------------------------------------------------- #
-def discover_dirs(leaf_dir: Path) -> list[tuple[str, Path]]:
-    """Return (prefix, dir_path) for normal ``*_test`` directories only.
+def discover_dirs(leaf_dir: Path) -> list[tuple[str, str, Path]]:
+    """Return (prefix, kind, dir_path) for normal and hard frame directories.
 
-    ``*_test_hard`` directories are skipped on purpose: hard-frame testing is
-    cancelled, but the original images must stay on disk untouched.
+    ``kind`` is ``"normal"`` for ``<prefix>_test`` and ``"hard"`` for
+    ``<prefix>_test_hard``.  Hard frames are always collected and written to
+    ``hard_test.csv``; they never enter train/val.
     """
     if not leaf_dir.is_dir():
         fail(f"leaf dir not found: {as_posix(leaf_dir)}")
-    found: list[tuple[str, Path]] = []
+    found: list[tuple[str, str, Path]] = []
     for entry in sorted(leaf_dir.iterdir(), key=lambda item: item.name):
         if not entry.is_dir():
             continue
         name = entry.name
         if name.endswith("_test_hard"):
-            continue  # hard frames intentionally excluded from all manifests
-        if not name.endswith("_test"):
+            prefix, kind = name[: -len("_test_hard")], "hard"
+        elif name.endswith("_test"):
+            prefix, kind = name[: -len("_test")], "normal"
+        else:
             continue
-        prefix = name[: -len("_test")]
         if prefix not in PREFIX_TO_KEY:
             fail(f"unknown live-scene directory: {as_posix(entry)}")
-        found.append((prefix, entry))
+        found.append((prefix, kind, entry))
 
-    observed = {prefix for prefix, _ in found}
+    observed = {(prefix, kind) for prefix, kind, _ in found}
     for prefix in PREFIX_ORDER:
-        if prefix not in observed:
-            fail(f"missing directory for {prefix}: expected {prefix}_test")
+        for kind in ("normal", "hard"):
+            if (prefix, kind) not in observed:
+                fail(f"missing directory for {prefix} ({kind}): expected "
+                     f"{prefix}_test" + ("_hard" if kind == "hard" else ""))
     return found
 
 
 def collect_frames(leaf_dir: Path, registry: dict[str, dict]) -> list[dict]:
     records: list[dict] = []
-    for prefix, directory in discover_dirs(leaf_dir):
+    for prefix, kind, directory in discover_dirs(leaf_dir):
         entry = registry[PREFIX_TO_KEY[prefix]]
         files = sorted(
             (item for item in directory.iterdir()
@@ -218,6 +236,7 @@ def collect_frames(leaf_dir: Path, registry: dict[str, dict]) -> list[dict]:
                 "common": entry["common"],
                 "path": str(path),
                 "prefix": prefix,
+                "kind": kind,
                 "video": video,
             }
             records.append(record)
@@ -230,7 +249,10 @@ def collect_frames(leaf_dir: Path, registry: dict[str, dict]) -> list[dict]:
 def assign_splits(records: list[dict], mode: str) -> dict[str, list[dict]]:
     grouped: dict[str, list[dict]] = defaultdict(list)
     for record in records:
-        if mode == "all":
+        if record["kind"] == "hard":
+            # All hard frames go to hard_test regardless of source video.
+            split = "hard_test"
+        elif mode == "all":
             split = "test"
         else:
             video = record["video"]
@@ -284,7 +306,7 @@ def check_counts(label: str, rows: list[dict], expected: dict[str, int]) -> None
 def check_video_isolation(grouped: dict[str, list[dict]]) -> None:
     videos = {
         split: {row["video"] for row in grouped.get(split, [])}
-        for split in ("train", "val", "test")
+        for split in ("train", "val", "test", "hard_test")
     }
     for split, expected in EXPECTED_VIDEO_PREFIXES.items():
         if videos[split] != expected:
@@ -297,13 +319,32 @@ def check_video_isolation(grouped: dict[str, list[dict]]) -> None:
                  f"{first} and {second}")
     print("  video prefixes: " + " ".join(
         f"{split}={sorted(videos[split])}" for split in
-        ("train", "val", "test")))
+        ("train", "val", "test", "hard_test")))
+    print("  note: hard_test intentionally shares videos with train/val/test; "
+          "it is a robustness/stress set, not an independent validation set.")
+
+
+def check_hard_isolation(grouped: dict[str, list[dict]]) -> None:
+    """Hard frames must live only in hard_test, never in train/val/test."""
+    leaked = [
+        row["filename"] for split in NORMAL_SPLITS
+        for row in grouped.get(split, []) if row["kind"] == "hard"
+    ]
+    if leaked:
+        fail(f"hard frames leaked into train/val/test: {leaked[:5]}")
+    non_hard = [row["filename"] for row in grouped.get("hard_test", [])
+                if row["kind"] != "hard"]
+    if non_hard:
+        fail(f"hard_test contains normal frames: {non_hard[:5]}")
+    print("  hard isolation: all hard_* rows are in hard_test only")
 
 
 def check_sha_leakage(grouped: dict[str, list[dict]]) -> dict:
     """Report cross-split duplicate content by SHA-256.
 
-    A hard failure is raised when train/val/test share identical content.
+    A hard failure is raised only when train/val/test share identical
+    content.  Byte-identical hard/normal frames are reported as a note
+    (hard frames are a robustness set and may overlap by construction).
     """
     split_of: dict[str, set[str]] = defaultdict(set)
     rows_of: dict[str, list[dict]] = defaultdict(list)
@@ -312,15 +353,18 @@ def check_sha_leakage(grouped: dict[str, list[dict]]) -> dict:
             split_of[row["sha256"]].add(split)
             rows_of[row["sha256"]].append(row)
 
-    core_splits = {"train", "val", "test"}
+    core_splits = set(NORMAL_SPLITS)
     core_cross = []
     within_duplicates = 0
+    hard_overlap = []
     for digest, splits in split_of.items():
         core_hits = splits & core_splits
         if len(core_hits) > 1:
             core_cross.append((digest, sorted(core_hits), rows_of[digest]))
         elif len(rows_of[digest]) > 1 and len(splits) == 1:
             within_duplicates += 1
+        if "hard_test" in splits and core_hits:
+            hard_overlap.append((digest, sorted(core_hits), rows_of[digest]))
 
     print(f"  SHA-256 unique={len(rows_of)} / total={sum(len(v) for v in grouped.values())}")
     print(f"  cross-split duplicate content groups (train/val/test): {len(core_cross)}")
@@ -331,10 +375,29 @@ def check_sha_leakage(grouped: dict[str, list[dict]]) -> dict:
         fail(f"SHA-256 leakage across train/val/test: {len(core_cross)} groups "
              f"({examples})")
 
+    if hard_overlap:
+        example = hard_overlap[0]
+        names = ", ".join(row["filename"] for row in example[2][:4])
+        core_names = sorted({split for _, splits, _ in hard_overlap
+                             for split in splits})
+        print(f"  note: {len(hard_overlap)} hard_test content group(s) also appear "
+              f"byte-identically in {core_names} "
+              f"(e.g. {example[0][:12]}: {names}); "
+              f"hard_test is a robustness set, not an independent test set")
+    else:
+        print("  note: no byte-identical hard_test/normal content")
+
+    hard_rows = grouped.get("hard_test", [])
+    hard_dup_rows = sum(
+        1 for row in hard_rows
+        if split_of[row["sha256"]] - {"hard_test"}
+    )
     return {
         "unique_sha256": len(rows_of),
         "cross_split_duplicate_groups": len(core_cross),
         "within_split_duplicate_groups": within_duplicates,
+        "hard_test_cross_split_groups": len(hard_overlap),
+        "hard_test_cross_split_rows": hard_dup_rows,
     }
 
 
@@ -424,8 +487,9 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--leaf-dir", required=True,
                         help="live frame root, e.g. data/leaf")
     parser.add_argument("--mode", required=True, choices=("all", "video-split"),
-                        help="all: full normal test; video-split: "
-                             "leaf01-03/05/04")
+                        help="all: full normal test + all hard frames; "
+                             "video-split: leaf01-03/05/04 normal + all hard "
+                             "frames in hard_test")
     parser.add_argument("--registry", required=True,
                         help="class_registry.json (5 classes) or _all32.json")
     parser.add_argument("--out", required=True, help="output directory")
@@ -441,9 +505,13 @@ def main(argv: list[str] | None = None) -> int:
     print(f"registry: {len(registry)} classes loaded")
 
     records = collect_frames(leaf_dir, registry)
-    print(f"discovered frames: normal={len(records)}")
-    if len(records) != sum(EXPECTED_ALL_NORMAL.values()):
-        fail(f"normal frame total {len(records)} != 432")
+    normal_count = sum(1 for record in records if record["kind"] == "normal")
+    hard_count = sum(1 for record in records if record["kind"] == "hard")
+    print(f"discovered frames: normal={normal_count} hard={hard_count}")
+    if normal_count != sum(EXPECTED_ALL_NORMAL.values()):
+        fail(f"normal frame total {normal_count} != 432")
+    if hard_count != sum(EXPECTED_ALL_HARD.values()):
+        fail(f"hard frame total {hard_count} != 227")
 
     grouped = assign_splits(records, args.mode)
     attach_hashes(records)
@@ -455,18 +523,26 @@ def main(argv: list[str] | None = None) -> int:
         if len(grouped.get("test", [])) != 432:
             fail(f"test expected 432 rows, got {len(grouped.get('test', []))}")
     else:
-        for split in ("train", "val", "test"):
+        for split in NORMAL_SPLITS:
             check_counts(split, grouped.get(split, []), EXPECTED_VIDEO_COUNTS[split])
             if len(grouped.get(split, [])) != VIDEO_SPLIT_TOTALS[split]:
                 fail(f"{split}: expected {VIDEO_SPLIT_TOTALS[split]} rows, "
                      f"got {len(grouped.get(split, []))}")
         check_video_isolation(grouped)
+    check_counts("hard_test", grouped.get("hard_test", []), EXPECTED_ALL_HARD)
+    if len(grouped.get("hard_test", [])) != VIDEO_SPLIT_TOTALS["hard_test"]:
+        fail(f"hard_test expected {VIDEO_SPLIT_TOTALS['hard_test']} rows, "
+             f"got {len(grouped.get('hard_test', []))}")
+    check_hard_isolation(grouped)
 
     # ---- SHA-256 leakage ------------------------------------------------- #
     print("leakage validation:")
     check_sha_leakage(grouped)
     if args.mode == "video-split":
-        all_rows = [row for split in ("train", "val", "test")
+        # dHash is only meaningful for the ordinary train/val/test frames;
+        # hard_test is a robustness set and is intentionally excluded.
+        print("  dHash: normal train/val/test only (hard_test excluded)")
+        all_rows = [row for split in NORMAL_SPLITS
                     for row in grouped.get(split, [])]
         dhash_near_duplicates(all_rows)
 
@@ -481,10 +557,14 @@ def main(argv: list[str] | None = None) -> int:
         print(f"  wrote {as_posix(path)} ({len(rows)} rows)")
 
     print("re-read validation:")
-    expected_totals = ({"test": sum(EXPECTED_ALL_NORMAL.values())}
-                       if args.mode == "all" else
-                       {split: VIDEO_SPLIT_TOTALS[split]
-                        for split in OUTPUT_SPLITS[args.mode]})
+    if args.mode == "all":
+        expected_totals = {
+            "test": sum(EXPECTED_ALL_NORMAL.values()),
+            "hard_test": sum(EXPECTED_ALL_HARD.values()),
+        }
+    else:
+        expected_totals = {split: VIDEO_SPLIT_TOTALS[split]
+                           for split in OUTPUT_SPLITS[args.mode]}
     for split in OUTPUT_SPLITS[args.mode]:
         path = out_dir / f"{split}.csv"
         verify_csv(path, expected_totals[split], {split}, registry, leaf_dir)

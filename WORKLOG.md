@@ -491,3 +491,33 @@
 - 验证结论: 通过（4 行，列名为 `model,accuracy,macro_f1,ce_loss,n`）
 - 提交: `fix(eval): 补充 E2 普通测试指标 CSV`
 - 遗留问题 / 下一步: 报告与网页
+
+---
+
+## [2026-10-20 15:30] T5.10 实景鲁棒性测试（全部困难帧 227）
+
+- 执行代理: 子代理（恢复 hard 清单生成，opus / medium）+ 主代理（评测、验证）
+- 目标: 用全部 227 张困难帧测鲁棒性，避免只用 leaf04 的 35 张导致类别失衡
+- 数据: 227 张，每类 camphor 45 / cercis 39 / lagerstroemia 50 / osmanthus 40 / pittosporum 53；覆盖 leaf01–05；`split=hard_test`；仅测试，绝不进入 train/val
+- 清单:
+  - `data/splits/live_all/hard_test.csv`（5 类）
+  - `data/splits/live5/hard_test.csv`（5 类）
+  - `data/splits/live_all32/hard_test.csv`（32 类标签）
+- 结果（n=227）:
+
+| 实验 | 训练组 | A | B | C | D |
+|---|---|---|---|---|---|
+| R1 | W5 五类白底 | 26.43% | 33.92% | 22.91% | 31.28% |
+| R2 | L5 五类实景 | 56.39% | **67.40%** | 55.07% | 40.53% |
+| R3 | W32 32 类白底 | 0.00% | 2.64% | 0.44% | 0.00% |
+
+- 关键对比: R2 用全量 227 张后 B 为 67.40%，明显高于此前 leaf04 35 张的 45.71%，说明全量困难帧更稳定；R3 仍接近 32 类随机基线（约 3.1%）。
+- 产物:
+  - `pic/spec-train-live-test/test_hard_ABCD.png` + `metrics_test_hard.csv`
+  - `pic/live-train-test/test_hard_ABCD.png` + `metrics_test_hard.csv`
+  - `pic/spec-train-live-test-all/test_hard_ABCD.png` + `metrics_test_hard.csv`
+- 说明: 困难帧来自 leaf01–05，其中 leaf01–03 与 L5 训练视频重叠，结果只作鲁棒性/压力测试，不能当作独立验证集或泛化证据。
+- 目录调整: 用户已将 `runs/5class` 改名为 `runs/spec5`、`runs/all32` 改名为 `runs/spec32`；`plans.md` 与 `AGENTS.md` 已同步。
+- 验证: 三张图目视通过；三套清单各 227 行、每类 45/39/50/40/53、无 train/val 混入；metrics CSV 四模型齐全
+- 提交: `feat(eval): 完成全部困难帧鲁棒性测试`
+- 遗留问题 / 下一步: 报告与网页
