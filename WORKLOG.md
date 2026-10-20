@@ -602,3 +602,27 @@
 - 服务: `http://127.0.0.1:5000` 正在运行
 - 提交: `feat(webapp): 实现原生前端叶片识别与 pic 数据看板`
 - 遗留问题 / 下一步: Grad-CAM 可视化（可选）、真实摄像头截图（需人工）、报告 4.5 素材整理
+
+---
+
+## [2026-10-20 21:38] T8.0 制定知叶网页二轮修改计划
+
+- 执行代理: 主代理（需求澄清、代码阅读、计划拆分；未写代码、未启动服务）
+- 目标: 把用户第二轮 8 条反馈拆成可验收的 T8.1–T8.9，并更新 `plans.md` §5 与 §8 验收项
+- 调查结论（只读检查）:
+  - `webapp/model_service.py:35-48` 目前只有 `spec5`、`spec32` 两个模型组，缺少 `runs/live5`，所以“实景（5）”无法选择
+  - `webapp/model_service.py:340-341` 把 `gradcam_png_base64` 硬编码为 `None`、`gradcam_available` 为 `False`；项目中没有 `webapp/gradcam.py`。因此 Grad-CAM 不是传输链路丢字段，而是后端根本没有实现
+  - `webapp/static/js/app.js` 的 `selectModel()` / `selectGroup()` 在切换时调用 `resetResult(...)`，会清空结果并提示“请重新识别”，不满足“不清除图片继续识别”
+  - `webapp/static/js/gallery.js` 当前只把 `metrics_test*.csv` / `ablation_metrics.csv` 转成柱状图，训练曲线没有交互图；同目录的 PNG 图片和 docx 仍在底部展示并可下载
+  - `pic/melt-test/ablation_*.png` 的柱顶有数值标签、图例在底部；交互图当前 `groupedBarOption()` 在标签长度 >8 时旋转 16°，与“横坐标水平、图例右上角”不符
+- 计划改动（只写计划，未执行）:
+  - `plans.md` §5.2：新增 `webapp/gradcam.py`、`webapp/chart_data.py` 架构，ModelRegistry 改为三组
+  - `plans.md` §5.3/§5.4/§5.6：模型组固定为“标本（5）／标本（32）／实景（5）”；切换模型/组保留图片并重识别；Grad-CAM 改为真实返回 PNG base64
+  - `plans.md` §5.7：看板改为纯交互图；给出 6 个目录的图表清单、数据来源、统一坐标轴/图例/标签规则
+  - `plans.md` §5.8：新增 `gradcam.png`、`switch_model.png`、`melt_test.png` 截图要求
+  - `plans.md` §8：新增三组模型、Grad-CAM、纯交互看板三条未勾选验收项
+  - `plans.md` §14.8：新增 T8.1–T8.9，逐条给出文件范围与可执行验收标准
+- 命令与结果: 只读检查 `rg`/`sed`/`find`、`git log`；未运行训练、未改代码、未重启 Flask
+- 验证结论: 计划文档自检通过；本步没有代码产物需要运行验证
+- 提交: `docs(plan): 制定知叶网页二轮修改计划`
+- 遗留问题 / 下一步: 待用户确认计划后，按 T8.1→T8.9 派发子代理实现；T8.1/T8.2/T8.4 可并行，T8.3/T8.5/T8.6/T8.7/T8.8 按依赖串行

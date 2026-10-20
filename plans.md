@@ -467,22 +467,25 @@ Windows 字体路径 `C:\Windows\Fonts\msyh.ttc`、`simhei.ttf` 已确认存在�
 webapp/
 ├─ __init__.py
 ├─ app.py              # Flask 入口、路由、参数校验、演示按钮 API
-├─ model_service.py    # ModelRegistry：发现/加载/缓存 A/B/C/D
-├─ gallery_service.py  # 扫描 pic/、解析 CSV、生成看板数据
+├─ model_service.py    # ModelRegistry：发现/加载/缓存 A/B/C/D × 三个模型组
+├─ gradcam.py          # Grad-CAM：forward/backward hook、热力图叠加、PNG base64
+├─ gallery_service.py  # 扫描 pic/、解析 CSV、组装看板图表数据
+├─ chart_data.py       # 从 runs/ 与 pic/ 生成 ECharts 图表规格
 ├─ templates/index.html
 └─ static/
    ├─ css/style.css
-   ├─ js/app.js        # 识别页：摄像头/上传/模型切换/Grad-CAM
-   ├─ js/gallery.js    # 数据看板：目录分类、图片灯箱、ECharts
+   ├─ js/app.js        # 识别页：摄像头/上传/模型切换后重识别/Grad-CAM
+   ├─ js/gallery.js    # 数据看板：目录分类、交互式折线图/柱状图
    └─ vendor/echarts.min.js
 ```
 
 `ModelRegistry`：
 - 启动时读取 `data/class_registry.json` 与 `data/class_registry_all32.json`（存在时）；
-- 扫描 `runs/spec5/*/best.pt` 与 `runs/spec32/*/best.pt`，只加载 A/B/C/D（E 仅消融）；
+- 扫描 `runs/spec5`、`runs/spec32`、`runs/live5` 下 A/B/C/D 的 `best.pt`，只加载 A/B/C/D（E 仅消融）；
+- 三个模型组固定为 **标本（5）**（spec5）、**标本（32）**（spec32）、**实景（5）**（live5），组内模型保持 A/B/C/D 一致；
 - 校验 checkpoint 的 `class_keys` / `flavia_labels` / `num_classes` 与注册表一致；
 - 每个模型保存 `model_id → (model, transform, metadata)`；CPU 推理；
-- 模型组切换：五类（spec5）与 32 类（spec32）自动切换 Top-3/Top-5 与类别图例。
+- 模型组切换：按组自动切换 Top-3/Top-5、类别图例与测试指标；**切换模型或模型组时保留当前图片与预览，并自动用新模型重新识别**。
 
 ### 5.3 功能需求
 
@@ -490,12 +493,13 @@ webapp/
 |---|---|---|
 | 摄像头实时识别 | 打开摄像头，700 ms 轮询一帧，返回 Top-k + 置信度 + 可选 Grad-CAM | 上一帧未返回不发下一帧；切后台暂停 |
 | 上传图片识别 | 拖拽/选择图片，调用 `/api/predict` | JPG/PNG，限制 10 MB |
-| 模型切换 | A/B/C/D pills；可切换五类/32 类模型组 | 显示各模型测试 accuracy；缺失 checkpoint 置灰 |
+| 模型切换 | A/B/C/D pills；三个模型组：**标本（5）／标本（32）／实景（5）** | 显示各模型测试 accuracy；切换后不清除当前图片，自动重新识别 |
+| Grad-CAM | 对当前图片返回热力图叠加图；开关切换时重新请求 | 后端 hook 实现；A/B/C/D × 三个模型组均可用 |
 | 添加数据（演示） | 点击弹窗/Toast：“演示功能，未接入真实数据接口” | 不写文件、不调用真实上传/训练 API |
 | 模型训练（演示） | 点击弹窗 + 2–3 秒假进度条，结束提示“演示功能” | 不启动训练进程、不写 `runs/` |
-| pic 数据看板 | 按 `pic/<子目录>` 分类展示图片与 CSV 指标，CSV 用 ECharts 绘制 | 图片灯箱；CSV 自动识别指标列 |
+| pic 数据看板 | 按 `pic/<子目录>` 分类展示**交互式 ECharts 折线图/柱状图** | 不显示图片网格、文档或下载链接；数值通过 tooltip 查看 |
 
-> 本轮范围：Grad-CAM 后端暂未实现（接口字段保留，界面显示“暂不可用”）；“用测试样本试一下”一行为后续可选项，本轮未实现。
+> 本轮范围：Grad-CAM 必须真实可用（不再显示“暂不可用”）；数据看板只保留交互图，静态 PNG、docx 与所有下载入口一律不展示。“用测试样本试一下”仍为后续可选项，未实现。
 
 ### 5.4 API
 
@@ -507,15 +511,15 @@ webapp/
 | POST | `/api/predict` | multipart：`image`、`model`、`topk`（默认 3，32 类可传 5）、`gradcam=1` |
 | POST | `/api/predict_frame` | JSON：`{model, image_data_url, gradcam}`，供摄像头轮询 |
 | POST | `/api/predict_all` | 同一张图返回 A/B/C/D 四组结果，方便做报告 4.3 的样本对比图 |
-| GET | `/api/gallery` | 扫描 `pic/`，按一级目录返回文件树；CSV 返回列名、行数、前 200 行 |
-| GET | `/pic/<path>` | 安全地提供 pic 下的图片/CSV/docx 下载 |
+| GET | `/api/gallery` | 扫描 `pic/` 一级目录，返回每个目录的 `charts[]`（折线/柱状图规格）与文件元数据；前端只用 `charts` |
+| GET | `/pic/<path>` | 安全地提供 pic 下的静态文件（保留兼容；数据看板不再展示或链接图片/docx/CSV 下载） |
 | POST | `/api/demo/add-data` | 演示：返回 `{demo:true, message:...}`，不写文件、不接真实上传 |
 | POST | `/api/demo/train` | 演示：返回 `{demo:true, message:...}`，不启动训练、不写 `runs/` |
 
-返回字段：`model`、`topk[{key,zh_name,scientific_name,prob}]`、`latency_ms`、`gradcam_png_base64`（可选）。
+返回字段：`model`、`topk[{key,zh_name,scientific_name,prob}]`、`latency_ms`、`gradcam_available`、`gradcam_png_base64`（`gradcam=1` 时必须为非空 PNG base64）。
 
 预处理必须调用 `src/data.py::build_eval_transform()`；输入先 `ImageOps.exif_transpose`，转 RGB，再中心裁正方形。**Flask 多线程下用一把全局锁包住 forward/backward**，Grad-CAM 的 hook 必须在 `finally` 中移除。
-> Grad-CAM 字段保留：当前 `gradcam_available=false`、`gradcam_png_base64=null`，前端显示“暂不可用”。
+> Grad-CAM 实现：`webapp/gradcam.py` 通过 `model.get_gradcam_layer()` 注册 forward hook，取目标类别 logit 反传，按 channel 平均梯度加权、ReLU、归一化，再缩放到输入尺寸并用伪彩色叠加到原图；输出 PNG base64。A/E 为 576×4×4，B 为 1280×4×4，C/D 为 576×8×8，统一上采样。
 
 ### 5.5 摄像头流程
 
@@ -530,12 +534,14 @@ webapp/
 ### 5.6 界面布局
 
 - 顶部导航：**识别 / 数据看板 / 系统操作**；移动端折叠为汉堡菜单。
+- 品牌与标题：项目名统一为 **知叶**；小字为 **面向农学生的叶片识别与学习平台**；页面 `<title>` 为“知叶 · 农学生叶片识别与学习平台”。
 - 识别页：
-  - 标题：“校园叶片识别与可解释性可视化系统”；
+  - 标题：“知叶 · 叶片识别与学习平台”；说明文字体现“帮助农学生认识校园植物叶片”；
   - 左侧：摄像头预览 / 上传图片两个 Tab，拖拽上传、预览、正方形取景框；
-  - 右侧：模型切换 pill（A/B/C/D，显示各自测试 accuracy；可切换五类/32 类模型组）、Top-k 置信度条（五类 Top-3，32 类 Top-5）、中文名+学名、推理耗时、Grad-CAM 开关（后端暂未实现，显示“暂不可用”）、低置信度警告；
+  - 右侧：模型切换 pill（A/B/C/D，显示各自测试 accuracy；模型组固定为 **标本（5）／标本（32）／实景（5）**）、Top-k 置信度条（五类 Top-3，32 类 Top-5）、中文名+学名、推理耗时、Grad-CAM 开关（真实可用）、低置信度警告；
+  - **切换模型或模型组时不清除当前上传图片/拍照快照，自动用新模型重新识别**；Grad-CAM 开关变化时也对当前图片重新请求；
   - 底部：类别图例。五类直接显示 5 个；32 类用可滚动/可搜索列表，避免页面过长；
-  - 本轮未实现“用测试样本试一下”一行；上传/摄像头已覆盖演示。
+  - “用测试样本试一下”一行仍为后续可选项，本轮不实现。
 - 系统操作页：
   - “添加数据”按钮：点击直接弹出演示提示“演示功能，未接入真实数据接口”，不写文件；
   - “模型训练”按钮：弹出确认框，显示 2–3 秒假进度条，结束提示“演示功能，未启动真实训练”；
@@ -545,27 +551,47 @@ webapp/
 
 ### 5.7 pic 数据看板（ECharts）
 
-后端 `gallery_service.py`：
+后端 `gallery_service.py` + `chart_data.py`：
 - 扫描 `pic/` 一级子目录（当前包括 `spec-train-test`、`spec-train-test-all`、`spec-train-live-test`、`spec-train-live-test-all`、`live-train-test`、`melt-test`）；
-- 忽略 `~$*` 等 Office 临时文件；支持 `.png/.jpg/.jpeg`（图片）、`.csv`（指标）、`.docx`（下载）；
-- `/api/gallery` 返回 `directories[{name, files[]}]`：图片给 `url/size/mtime`；CSV 给 `columns/rows/n_rows`（前 200 行）；docx 给下载链接；
-- `/pic/<path>` 用 `send_from_directory` + 白名单扩展名，禁止 `..` 路径穿越；单文件限制 10 MB。
+- 忽略 `~$*` 等 Office 临时文件与隐藏文件；
+- `/api/gallery` 为每个目录返回 `charts[]` 图表规格；文件元数据仅保留兼容，不再供前端展示或下载；
+- 图表规格统一为：
+  `{id, title, type: "line"|"bar"|"groupedBar", xName, yName, unit: "percent"|"value", x: [...], series: [{key, name, data: [...]}], showDataLabels: bool}`；
+- 数据缺失或 CSV 解析失败时该目录返回空 `charts`，前端显示“暂无可绘制图表”，不生成假数据；
+- 不修改 `pic/` 下任何原始图片、CSV 或报告文件。
+
+图表目录（只列可绘制数据，不包含样本预测图）：
+
+| `pic/` 目录 | 折线图 | 柱状图 |
+|---|---|---|
+| `spec-train-test` | 训练损失–轮次、训练准确率–轮次（`runs/spec5/*/history.csv`） | 测试准确率、测试 CE 损失（`runs/spec5/*/test_metrics.json`） |
+| `spec-train-test-all` | 训练损失–轮次、训练准确率–轮次（`runs/spec32/*/history.csv`） | 测试准确率、测试 CE 损失（`runs/spec32/*/test_metrics.json`） |
+| `spec-train-live-test` | — | 普通实景准确率/损失、困难帧准确率/损失（`metrics_test.csv`、`metrics_test_hard.csv`） |
+| `spec-train-live-test-all` | — | 普通实景准确率/损失、困难帧准确率/损失（同上） |
+| `live-train-test` | 训练损失–轮次、训练准确率–轮次（`runs/live5/*/history.csv`） | 普通实景准确率/损失、困难帧准确率/损失（两个 CSV） |
+| `melt-test` | — | 主测试准确率/损失、困难帧准确率/损失、主测试模块增益、困难帧模块增益（`ablation_metrics.csv` + `raw/metrics_robust_*.csv`） |
 
 前端 `gallery.js`：
-- 顶部按目录生成 tab/卡片；目录内先显示指标 CSV 图表，再显示图片网格；
-- 图片点击打开灯箱，支持下载/上一张/下一张；
-- CSV 自动识别：
-  - `metrics_test*.csv`（`model,accuracy,macro_f1,ce_loss,n`）→ 双柱状图（accuracy、ce_loss）；
-  - `ablation_metrics.csv`（`dataset,model,accuracy,macro_f1,ce_loss,n`）→ 分组柱状图（x=dataset，系列=model；accuracy 与 ce_loss 各一张）；
-  - 其他 CSV → 表格预览（前 20 行）；
-- 图表使用本地 Apache ECharts 5.x，窗口 resize 自适应；空目录显示“暂无数据”；
-- 目录与文件均按名称排序，保证每次展示顺序稳定。
+- 目录 tab 的数量改为该目录的**图表数量**；目录内只渲染交互图，**不渲染图片网格、灯箱、文档列表、CSV 下载或“下载原图”入口**；
+- 所有折线图/柱状图统一规则：
+  - 模型横坐标一律用短 ID：普通对比为 **A/B/C/D**，消融为 **A/E/C/D**，不再出现 `A_mnv3s` 等全称；
+  - 横坐标标签强制水平摆放（`axisLabel.rotate = 0`、`interval = 0`）；
+  - 图例固定右上角，显示模型全称，字号缩小到 10：
+    `A MobileNetV3-Small`、`B MobileNetV2`、`C LeafNet-MSFF`、`D LeafNet-MSFF+CBAM`、`E MobileNetV3-Small+CBAM`；
+  - 单系列测试柱状图按模型拆成 4 个系列（每个系列只有自己位置有数值），使右上角图例能显示模型全称；
+  - `melt-test` 的所有柱状图**关闭柱顶数据标签**，数值只通过鼠标悬停 tooltip 查看；
+  - tooltip 统一显示百分比（accuracy）或数值（CE 损失），并在图例/坐标轴上保持 A/B/C/D 顺序；
+- 图表使用本地 Apache ECharts 5.x，窗口 resize 自适应；空目录显示“暂无可绘制图表”；
+- 目录与图表顺序稳定：目录按名称排序，图表按“训练曲线 → 测试柱状图 → 困难帧 → 增益”的固定顺序。
 
 ### 5.8 报告截图
 
-- `results/screenshots/recognition.png`：识别页（模型组/模型切换、摄像头占位、类别图例）；
+- `results/screenshots/recognition.png`：识别页（三个模型组、模型切换、摄像头占位、类别图例）；
 - `results/screenshots/upload_result.png`：上传 `1123.jpg` 的识别结果（紫荆 92.5%，Top-3）；
-- `results/screenshots/gallery.png`：pic 数据看板（6 个目录、CSV ECharts、图片缩略图）；
+- `results/screenshots/gradcam.png`：Grad-CAM 热力图叠加效果；
+- `results/screenshots/switch_model.png`：同一张图片切换模型后自动重新识别；
+- `results/screenshots/gallery.png`：pic 数据看板（6 个目录、全交互图表、右上角图例）；
+- `results/screenshots/melt_test.png`：melt-test 图表（无柱顶标签、悬停 tooltip、横坐标水平）；
 - `results/screenshots/system_actions.png`：添加数据/模型训练演示按钮页；
 - `results/screenshots/demo_toast.png`：点击“添加数据”后的演示提示；
 - 摄像头实拍截图（webcam_01–04）需要真实摄像头，在无头验收中未生成，报告阶段可人工补拍。
@@ -691,7 +717,9 @@ DeepLearning/
 - [x] E1 / E2 / E3a / E3b 主测试图表全部生成到指定目录；E3c 不执行（用户确认）；hard 鲁棒性图见 §15.9 — 2026-10-20
 - [ ] 报告所需图表全部生成，中文无方框，A/B/C/D 顺序一致。
 - [x] 网页能加载 A/B/C/D；上传、拍照、实时、模型切换、Top-3 均可用 — 2026-10-20
-- [ ] Grad-CAM 可视化（接口字段预留，当前界面显示“暂不可用”）
+- [ ] 识别页三个模型组 **标本（5）／标本（32）／实景（5）** 均可加载；切换模型/模型组保留当前图片并自动重识别。
+- [ ] Grad-CAM 可视化：上传、拍照、实时均返回热力图，A/B/C/D × 三个模型组均可用。
+- [ ] 数据看板只显示交互式折线图/柱状图：无图片网格、无文档/CSV/原图下载；横坐标统一 A/B/C/D、图例右上角全称小字、melt-test 仅 tooltip 显示数值。
 - [ ] 摄像头轮询不重叠；切后台暂停；拒绝权限时有提示且上传仍可用。
 - [ ] 4 张摄像头截图 + 5 张分类上传截图已保存到 `results/screenshots/`。
 - [ ] `tools/verify_project.py` 对文件、划分、checkpoint、指标、图表、截图逐项输出 PASS/FAIL。
@@ -909,7 +937,7 @@ DeepLearning/
 
 > 输出：`pic/melt-test/ablation_main_accuracy.png`、`ablation_robustness_accuracy.png`、`ablation_gains.png`、`ablation_metrics.csv`、`消融实验报告.docx`（2 页）。
 
-### 14.7 网页设计与实现（新增计划，尚未执行）
+### 14.7 网页设计与实现（2026-10-20 已完成）
 
 - [x] T7.1 Flask 骨架、静态资源与本地 ECharts vendor — 2026-10-20
 - [x] T7.2 ModelRegistry（A/B/C/D，五类/32 类）与推理 API（Grad-CAM 字段预留）— 2026-10-20
@@ -918,7 +946,23 @@ DeepLearning/
 - [x] T7.5 pic 数据看板：按目录分类、图片灯箱、CSV ECharts — 2026-10-20
 - [x] T7.6 页面验收、API 端到端测试、截图与提交 — 2026-10-20
 
-> 输出：`webapp/` 全部文件；`results/screenshots/` 5 张截图。Grad-CAM 与“测试样例行”本轮未实现，接口/界面已标注。
+> 输出：`webapp/` 全部文件；`results/screenshots/` 5 张截图。T7 轮次中 Grad-CAM 与“测试样例行”未实现；Grad-CAM 在 §14.8 的 T8.4–T8.5 补齐。
+
+### 14.8 知叶网页二轮修改（2026-10-20 新增，待执行）
+
+> 目标：按用户第二轮反馈修正识别页、品牌、Grad-CAM 与数据看板。全部完成后重新生成 `results/screenshots/` 并提交。
+
+- [ ] T8.1 后端增加第三个模型组 **实景（5）**（`runs/live5`），三个组统一命名 **标本（5）／标本（32）／实景（5）**（验收：`/api/models` 返回 3 组、每组 A/B/C/D 共 12 个模型，`available=true`；`/api/health` 的 `num_models=12`；组内 `class_keys` 与对应注册表一致）
+- [ ] T8.2 品牌文案改为 **知叶**，小字改为 **面向农学生的叶片识别与学习平台**；同步 `<title>`、页头、识别页标题、页脚与 `app.py` 描述（验收：全站不再出现旧名“校园叶片识别与可解释性可视化系统”或“叶知”；页面标题/品牌/小字与计划一致）
+- [ ] T8.3 识别页切换模型或模型组时保留当前图片/快照并自动重新识别（验收：上传图片得到结果后点击 B/C/D 或切换模型组，预览不消失、结果自动更新为新模型、无需重新选择图片；拍照快照同理；无重复请求/竞态）
+- [ ] T8.4 实现 Grad-CAM 后端 `webapp/gradcam.py` 并接入 `model_service.predict()`（验收：A/B/C/D × 三个模型组在 `gradcam=1` 时均返回非空 `gradcam_png_base64`，可被 Pillow 解码为 ≥128×128 PNG；`gradcam_available=true`；hook 在 `finally` 移除，连续 20 次调用无 hook 泄漏/显存增长）
+- [ ] T8.5 打通 Grad-CAM 前端显示与 API 链路（验收：`/api/predict` 与 `/api/predict_frame` 的 `gradcam=1` 均返回可显示热力图；开关关闭隐藏、开启后对当前图片重新请求并显示；上传、拍照、实时均可用；截图 `gradcam.png` 非空）
+- [ ] T8.6 看板图表数据层：新增 `webapp/chart_data.py`，从 `runs/spec5|spec32|live5` 的 `history.csv`/`test_metrics.json` 与 `pic/` CSV 生成 ECharts 规格，`/api/gallery` 按目录返回 `charts[]`（验收：六个目录图表数为 `4/4/4/4/6/6`；折线点数=40，系列顺序 A/B/C/D；柱状数值与 CSV/JSON 逐项一致；缺失数据返回空 charts，不造数）
+- [ ] T8.7 数据看板改为纯交互图：移除图片网格、灯箱、文档列表、CSV/原图下载入口；目录 tab 数量改为图表数（验收：页面 DOM 不存在图片灯箱/下载链接/图片网格；每个目录只出现 ECharts canvas 与标题；空目录提示“暂无可绘制图表”；控制台无报错）
+- [ ] T8.8 图表样式统一：横坐标模型名统一 A/B/C/D（消融 A/E/C/D）且水平；图例固定右上角、显示模型全称、字号 10；`melt-test` 柱状图关闭柱顶标签、仅 tooltip 悬停查看（验收：ECharts option 中 `xAxis.data`、`axisLabel.rotate=0`、`legend.right`、`legend.textStyle.fontSize=10`、`legend.data` 为全称、melt 系列 `label.show=false` 全部断言通过）
+- [ ] T8.9 二轮验收：后端 test client + Playwright + 截图 + 计划勾选 + WORKLOG + git 提交（验收：T8.1–T8.8 验收项全部 PASS；新增/更新截图 7 张；无失败项才允许提交）
+
+> 改动边界：只改 `webapp/` 与 `results/screenshots/`，不重训模型、不改 `data/class_map.json`/注册表/划分、不删除 `pic/` 原始文件、不改 `runs/` 权重。
 
 ---
 
