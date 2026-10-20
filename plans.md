@@ -445,27 +445,57 @@ Windows 字体路径 `C:\Windows\Fonts\msyh.ttc`、`simhei.ttf` 已确认存在�
 
 ## 5. 摄像头识别网页（报告 4.5）
 
-### 5.1 文件与架构
+### 5.1 技术栈
+
+| 层 | 技术选型 | 用途 |
+|---|---|---|
+| 后端框架 | Python 3.10 + Flask 3.1 + Werkzeug | 路由、Jinja2 模板、静态文件、JSON API |
+| 模型推理 | PyTorch 2.5.1（CPU）+ torchvision 0.20.1 | A/B/C/D 推理；E 仅消融，不进网页 |
+| 图像处理 | Pillow 11 + NumPy 2 | EXIF 校正、RGB、中心裁剪、ImageNet 归一化 |
+| 可解释性 | PyTorch forward/backward hook | Grad-CAM 热力图 |
+| 数据格式 | JSON（注册表）+ CSV（指标/划分） | 模型元数据、看板图表数据 |
+| 页面模板 | Jinja2 + HTML5 | `templates/index.html` |
+| 样式 | 原生 CSS3（Grid/Flex + CSS 变量），不用 UI 框架 | 叶绿色主题、900px 以下单栏 |
+| 交互 | 原生 JavaScript ES6 + Fetch API | 上传、摄像头轮询、模型切换、演示按钮 |
+| 摄像头 | `navigator.mediaDevices.getUserMedia` + Canvas | 实时预览、中心裁正方形抓帧 |
+| 图表 | Apache ECharts 5.x（本地 `static/vendor/echarts.min.js`） | pic 数据看板动态图表 |
+| 运行方式 | `python -m webapp.app`，无前端构建、无 CDN | 离线可用 |
+
+### 5.2 文件与架构
 
 ```
 webapp/
 ├─ __init__.py
-├─ app.py              # Flask 入口、路由、参数校验
+├─ app.py              # Flask 入口、路由、参数校验、演示按钮 API
 ├─ model_service.py    # ModelRegistry：发现/加载/缓存 A/B/C/D
+├─ gallery_service.py  # 扫描 pic/、解析 CSV、生成看板数据
 ├─ templates/index.html
 └─ static/
    ├─ css/style.css
-   └─ js/app.js
+   ├─ js/app.js        # 识别页：摄像头/上传/模型切换/Grad-CAM
+   ├─ js/gallery.js    # 数据看板：目录分类、图片灯箱、ECharts
+   └─ vendor/echarts.min.js
 ```
 
 `ModelRegistry`：
-- 启动时读取 `data/class_registry.json`；若存在 `data/class_registry_all32.json` 也一并读取，扫描 `runs/{5class,all32}/*/best.pt`；
-- 只加载 A/B/C/D（E 仅用于消融，不进网页）；
+- 启动时读取 `data/class_registry.json` 与 `data/class_registry_all32.json`（存在时）；
+- 扫描 `runs/spec5/*/best.pt` 与 `runs/spec32/*/best.pt`，只加载 A/B/C/D（E 仅消融）；
 - 校验 checkpoint 的 `class_keys` / `flavia_labels` / `num_classes` 与注册表一致；
-- **支持两套模型**：`runs/spec5/*` 与 `runs/spec32/*`；网页按模型元数据自动切换类别数、Top-3/Top-5 和图例；
-- 每个模型保存 `model_id → (model, transform, metadata)`，CPU 推理。
+- 每个模型保存 `model_id → (model, transform, metadata)`；CPU 推理；
+- 模型组切换：五类（spec5）与 32 类（spec32）自动切换 Top-3/Top-5 与类别图例。
 
-### 5.2 API
+### 5.3 功能需求
+
+| 功能 | 行为 | 说明 |
+|---|---|---|
+| 摄像头实时识别 | 打开摄像头，700 ms 轮询一帧，返回 Top-k + 置信度 + 可选 Grad-CAM | 上一帧未返回不发下一帧；切后台暂停 |
+| 上传图片识别 | 拖拽/选择图片，调用 `/api/predict` | JPG/PNG，限制 10 MB |
+| 模型切换 | A/B/C/D pills；可切换五类/32 类模型组 | 显示各模型测试 accuracy；缺失 checkpoint 置灰 |
+| 添加数据（演示） | 点击弹窗/Toast：“演示功能，未接入真实数据接口” | 不写文件、不调用真实上传/训练 API |
+| 模型训练（演示） | 点击弹窗 + 2–3 秒假进度条，结束提示“演示功能” | 不启动训练进程、不写 `runs/` |
+| pic 数据看板 | 按 `pic/<子目录>` 分类展示图片与 CSV 指标，CSV 用 ECharts 绘制 | 图片灯箱；CSV 自动识别指标列 |
+
+### 5.4 API
 
 | 方法 | 路径 | 作用 |
 |---|---|---|
@@ -475,12 +505,16 @@ webapp/
 | POST | `/api/predict` | multipart：`image`、`model`、`topk`（默认 3，32 类可传 5）、`gradcam=1` |
 | POST | `/api/predict_frame` | JSON：`{model, image_data_url, gradcam}`，供摄像头轮询 |
 | POST | `/api/predict_all` | 同一张图返回 A/B/C/D 四组结果，方便做报告 4.3 的样本对比图 |
+| GET | `/api/gallery` | 扫描 `pic/`，按一级目录返回文件树；CSV 返回列名、行数、前 200 行 |
+| GET | `/pic/<path>` | 安全地提供 pic 下的图片/CSV/docx 下载 |
+| POST | `/api/demo/add-data` | 演示：返回 `{demo:true, message:...}`，不写文件、不接真实上传 |
+| POST | `/api/demo/train` | 演示：返回 `{demo:true, message:...}`，不启动训练、不写 `runs/` |
 
 返回字段：`model`、`topk[{key,zh_name,scientific_name,prob}]`、`latency_ms`、`gradcam_png_base64`（可选）。
 
 预处理必须调用 `src/data.py::build_eval_transform()`；输入先 `ImageOps.exif_transpose`，转 RGB，再中心裁正方形。**Flask 多线程下用一把全局锁包住 forward/backward**，Grad-CAM 的 hook 必须在 `finally` 中移除。
 
-### 5.3 摄像头流程
+### 5.5 摄像头流程
 
 - 页面按钮触发 `navigator.mediaDevices.getUserMedia({video:{width:640,height:480,facingMode:'environment'}, audio:false})`；
 - 视频上叠一个**正方形取景框**，提示把叶片放中间；发送前从 canvas 中心裁正方形，再交给统一 transform；
@@ -490,23 +524,49 @@ webapp/
 
 **权限限制**：必须用 `http://127.0.0.1:5000` 或 `http://localhost:5000` 打开；`http://<局域网IP>:5000` 在浏览器里不是安全上下文，`getUserMedia` 会被拒绝。还要确认 Windows 相机隐私权限已开启、没有其他程序占用摄像头。
 
-### 5.4 界面
+### 5.6 界面布局
 
-- 标题：“校园叶片识别与可解释性可视化系统”；
-- 左侧：摄像头预览 / 上传图片两个 Tab，拖拽上传、预览、取景框；
-- 右侧：模型切换 pill（A/B/C/D，显示各自测试 accuracy；可切换 5 类/32 类模型组）、Top-k 置信度条（五类 Top-3，32 类 Top-5）、中文名+学名、推理耗时、Grad-CAM 开关、低置信度警告；
-- 底部：类别图例。五类直接显示 5 个；32 类用可滚动/可搜索列表，避免页面过长；
-- 底部保留“用测试样本试一下”一行（五类各 1 张），方便无摄像头时演示；32 类模式随机抽 8 张；
+- 顶部导航：**识别 / 数据看板 / 系统操作**；移动端折叠为汉堡菜单。
+- 识别页：
+  - 标题：“校园叶片识别与可解释性可视化系统”；
+  - 左侧：摄像头预览 / 上传图片两个 Tab，拖拽上传、预览、正方形取景框；
+  - 右侧：模型切换 pill（A/B/C/D，显示各自测试 accuracy；可切换五类/32 类模型组）、Top-k 置信度条（五类 Top-3，32 类 Top-5）、中文名+学名、推理耗时、Grad-CAM 开关、低置信度警告；
+  - 底部：类别图例。五类直接显示 5 个；32 类用可滚动/可搜索列表，避免页面过长；
+  - 底部保留“用测试样本试一下”一行（五类各 1 张），方便无摄像头时演示；32 类模式随机抽 8 张；
+- 系统操作页：
+  - “添加数据”按钮：打开文件选择框后只弹出演示提示“演示功能，未接入真实数据接口”，不写文件；
+  - “模型训练”按钮：弹出确认框，显示 2–3 秒假进度条，结束提示“演示功能，未启动真实训练”；
+  - 两个按钮都只调用 `/api/demo/*`，不执行任何真实上传或训练；
 - 报告模板里的“手写字体测试”与叶片识别无关，用**上传图片**替代，报告 4.5 里写明即可；
-- 配色叶绿色系，卡片式两栏布局，900 px 以下单栏；**不引用 CDN**，CSS/JS 全部本地，保证离线可用。
+- 配色叶绿色系，卡片式两栏布局，900 px 以下单栏；**不引用 CDN**，CSS/JS/ECharts 全部本地，保证离线可用。
 
-### 5.5 报告截图
+### 5.7 pic 数据看板（ECharts）
+
+后端 `gallery_service.py`：
+- 扫描 `pic/` 一级子目录（当前包括 `spec-train-test`、`spec-train-test-all`、`spec-train-live-test`、`spec-train-live-test-all`、`live-train-test`、`melt-test`）；
+- 忽略 `~$*` 等 Office 临时文件；支持 `.png/.jpg/.jpeg`（图片）、`.csv`（指标）、`.docx`（下载）；
+- `/api/gallery` 返回 `directories[{name, files[]}]`：图片给 `url/size/mtime`；CSV 给 `columns/rows/n_rows`（前 200 行）；docx 给下载链接；
+- `/pic/<path>` 用 `send_from_directory` + 白名单扩展名，禁止 `..` 路径穿越；单文件限制 10 MB。
+
+前端 `gallery.js`：
+- 顶部按目录生成 tab/卡片；目录内先显示指标 CSV 图表，再显示图片网格；
+- 图片点击打开灯箱，支持缩放/下载；
+- CSV 自动识别：
+  - `metrics_test*.csv`（`model,accuracy,macro_f1,ce_loss,n`）→ 双柱状图（accuracy、ce_loss）；
+  - `ablation_metrics.csv`（`dataset,model,accuracy,macro_f1,ce_loss,n`）→ 分组柱状图（x=dataset，系列=model；accuracy 与 ce_loss 各一张）；
+  - 其他 CSV → 表格预览（前 20 行）；
+- 图表使用本地 Apache ECharts 5.x，窗口 resize 自适应；空目录显示“暂无数据”；
+- 目录与文件均按名称排序，保证每次展示顺序稳定。
+
+### 5.8 报告截图
 
 - `results/screenshots/webcam_01.png` … `webcam_04.png`：4 张摄像头拍摄小组成员/叶片，覆盖不同模型切换；
 - `upload_cercis_chinensis.png`、`upload_pittosporum_tobira.png`、`upload_cinnamomum_camphora.png`、`upload_osmanthus_fragrans.png`、`upload_lagerstroemia_indica.png`：每类 1 张上传测试；
+- `gallery_dashboard.png`：pic 数据看板（目录分类 + ECharts 指标图）；
+- `demo_buttons.png`：添加数据/模型训练演示按钮的提示；
 - 截图直接从真实页面截取，满足“4+N 张、不需要文字描述”的要求。
 
-### 5.6 启动命令
+### 5.9 启动命令
 
 ```bash
 "C:/Anaconda/envs/torch_env/python.exe" -m webapp.app --checkpoints runs --host 127.0.0.1 --port 5000
@@ -578,7 +638,7 @@ DeepLearning/
 │  ├─ extract_frames.py       # 已存在，保留不动
 │  ├─ extract_test_frames.py  # 已存在，保留不动
 │  └─ verify_project.py
-├─ webapp/                    # 见 5.1
+├─ webapp/                    # 见 5.1–5.9
 ├─ runs/{spec5,live5,spec32,live32}/<run_id>/
 ├─ pic/
 │  ├─ spec-train-test/        # W5 白底训练标准 5 图（已完成）
@@ -668,7 +728,7 @@ DeepLearning/
 | 4.2 训练过程 | §3.3 参数表 + `training_summary.csv` 的每轮耗时/曲线 |
 | 4.3 训练结果 | `fig4_1`–`fig4_6`、测试 loss/acc 表、`table4_5_real_scene.csv`（432 张普通实景；E1/E2/E3b） |
 | 4.4 消融 | A / E(+CBAM) / C(+MSFF) / D(两者) + `fig4_7`，并给出交互项 `(D−C)−(E−A)` |
-| 4.5 可视化网站 | §5 网页 + 4 张摄像头 + 5 张上传截图 |
+| 4.5 可视化网站 | §5 网页 + 摄像头/上传/模型切换/Grad-CAM + pic 数据看板（ECharts）+ 添加数据/训练演示按钮 + 截图 |
 | 5.1/5.2 收获与展望 | 域差异、小测试集、压力测试、实景微调；后续扩到 32 类的方案与初步结果 |
 | 附录 | `src/models.py`、`src/train.py`、`webapp/app.py`、`webapp/static/js/app.js` 等 |
 
@@ -843,6 +903,15 @@ DeepLearning/
 - [x] T6.3 验证图表/报告并提交 — 2026-10-20
 
 > 输出：`pic/melt-test/ablation_main_accuracy.png`、`ablation_robustness_accuracy.png`、`ablation_gains.png`、`ablation_metrics.csv`、`消融实验报告.docx`（2 页）。
+
+### 14.7 网页设计与实现（新增计划，尚未执行）
+
+- [ ] T7.1 Flask 骨架、静态资源与本地 ECharts vendor
+- [ ] T7.2 ModelRegistry（A/B/C/D，五类/32 类）与推理 API + Grad-CAM
+- [ ] T7.3 摄像头实时识别、上传识别、模型切换
+- [ ] T7.4 添加数据/模型训练演示按钮与提示
+- [ ] T7.5 pic 数据看板：按目录分类、图片灯箱、CSV ECharts
+- [ ] T7.6 页面验收、截图（webcam/upload/gallery/demo）与提交
 
 ---
 
