@@ -2,20 +2,26 @@
 # -*- coding: utf-8 -*-
 """Build live-scene manifests for ``data/leaf`` and run leakage checks.
 
-The live frames live in ``data/leaf/<prefix>_test`` (normal) and
-``data/leaf/<prefix>_test_hard`` (hard).  File names look like
-``leaf04_000010.jpg``; ``leaf01``-``leaf05`` identify the source video.
+The live frames live in ``data/leaf/<prefix>_test`` (normal).  File names
+look like ``leaf04_000010.jpg``; ``leaf01``-``leaf05`` identify the source
+video.
+
+Hard frames live in ``data/leaf/<prefix>_test_hard`` but are intentionally
+**not used for testing**: hard-frame testing was cancelled because the
+per-class counts (2-13, with pittosporum at only 2) are too imbalanced.  The
+original hard images stay on disk untouched; this script ignores the
+``*_test_hard`` directories entirely and never writes ``hard_test.csv``.
 
 Modes
 -----
 ``--mode all``
-    Writes ``test.csv`` (all normal frames) and ``hard_test.csv`` (all hard
-    frames).  Used by E1 (W5) and E3b (W32).
+    Writes ``test.csv`` (all normal frames, 432 rows).  Used by E1 (W5) and
+    E3b (W32).
 
 ``--mode video-split``
     Writes a video-level split that keeps every source video in one split:
-    train = leaf01/02/03, val = leaf05, test = leaf04 (normal frames), and
-    hard_test = only leaf04 hard frames.
+    train = leaf01/02/03, val = leaf05, test = leaf04.  Normal frames only;
+    hard frames are not part of any split.
 
 ``py_label`` and ``flavia_label`` always come from the registry, matched by
 ``key``; they are never inferred from directory order.
@@ -60,19 +66,15 @@ PREFIX_TO_KEY = {
 }
 PREFIX_ORDER = ["camphor", "cercis", "lagerstroemia", "osmanthus", "pittosporum"]
 
-# plans.md §1.5: 432 normal / 227 hard frames.
+# plans.md §1.5: 432 normal frames (hard frames are not used for testing).
 EXPECTED_ALL_NORMAL = {
     "camphor": 83, "cercis": 96, "lagerstroemia": 100,
     "osmanthus": 86, "pittosporum": 67,
 }
-EXPECTED_ALL_HARD = {
-    "camphor": 45, "cercis": 39, "lagerstroemia": 50,
-    "osmanthus": 40, "pittosporum": 53,
-}
 
-# plans.md §1.5: train = leaf01/02/03, val = leaf05, test = leaf04,
-# hard_test = leaf04 hard frames only.
-VIDEO_SPLIT_TOTALS = {"train": 301, "val": 79, "test": 52, "hard_test": 35}
+# plans.md §1.5: train = leaf01/02/03, val = leaf05, test = leaf04.
+# Only normal frames are assigned; hard frames are excluded entirely.
+VIDEO_SPLIT_TOTALS = {"train": 301, "val": 79, "test": 52}
 EXPECTED_VIDEO_COUNTS = {
     "train": {
         "camphor": 61, "cercis": 63, "lagerstroemia": 76,
@@ -86,16 +88,11 @@ EXPECTED_VIDEO_COUNTS = {
         "camphor": 6, "cercis": 12, "lagerstroemia": 13,
         "osmanthus": 7, "pittosporum": 14,
     },
-    "hard_test": {
-        "camphor": 11, "cercis": 5, "lagerstroemia": 13,
-        "osmanthus": 4, "pittosporum": 2,
-    },
 }
 EXPECTED_VIDEO_PREFIXES = {
     "train": {"leaf01", "leaf02", "leaf03"},
     "val": {"leaf05"},
     "test": {"leaf04"},
-    "hard_test": {"leaf04"},
 }
 PREFIX_TO_SPLIT = {
     "leaf01": "train", "leaf02": "train", "leaf03": "train",
@@ -103,8 +100,8 @@ PREFIX_TO_SPLIT = {
 }
 
 FRAME_RE = re.compile(r"^(leaf\d{2})_(\d{6})\.jpg$", re.IGNORECASE)
-OUTPUT_SPLITS = {"all": ("test", "hard_test"),
-                 "video-split": ("train", "val", "test", "hard_test")}
+OUTPUT_SPLITS = {"all": ("test",),
+                 "video-split": ("train", "val", "test")}
 
 
 def fail(message: str) -> None:
@@ -164,40 +161,38 @@ def load_registry(path: Path) -> dict[str, dict]:
 # --------------------------------------------------------------------------- #
 # Frame discovery
 # --------------------------------------------------------------------------- #
-def discover_dirs(leaf_dir: Path) -> list[tuple[str, str, Path]]:
-    """Return (prefix, kind, dir_path) for normal/hard frame directories."""
+def discover_dirs(leaf_dir: Path) -> list[tuple[str, Path]]:
+    """Return (prefix, dir_path) for normal ``*_test`` directories only.
+
+    ``*_test_hard`` directories are skipped on purpose: hard-frame testing is
+    cancelled, but the original images must stay on disk untouched.
+    """
     if not leaf_dir.is_dir():
         fail(f"leaf dir not found: {as_posix(leaf_dir)}")
-    found: list[tuple[str, str, Path]] = []
+    found: list[tuple[str, Path]] = []
     for entry in sorted(leaf_dir.iterdir(), key=lambda item: item.name):
         if not entry.is_dir():
             continue
         name = entry.name
         if name.endswith("_test_hard"):
-            prefix, kind = name[: -len("_test_hard")], "hard"
-        elif name.endswith("_test"):
-            prefix, kind = name[: -len("_test")], "normal"
-        else:
+            continue  # hard frames intentionally excluded from all manifests
+        if not name.endswith("_test"):
             continue
+        prefix = name[: -len("_test")]
         if prefix not in PREFIX_TO_KEY:
             fail(f"unknown live-scene directory: {as_posix(entry)}")
-        found.append((prefix, kind, entry))
+        found.append((prefix, entry))
 
-    observed = {(prefix, kind) for prefix, kind, _ in found}
+    observed = {prefix for prefix, _ in found}
     for prefix in PREFIX_ORDER:
-        for kind in ("normal", "hard"):
-            if (prefix, kind) not in observed:
-                fail(f"missing directory for {prefix} ({kind}): expected "
-                     f"{prefix}_test" + ("_hard" if kind == "hard" else ""))
+        if prefix not in observed:
+            fail(f"missing directory for {prefix}: expected {prefix}_test")
     return found
 
 
-def collect_frames(leaf_dir: Path, registry: dict[str, dict],
-                   include_hard: bool) -> list[dict]:
+def collect_frames(leaf_dir: Path, registry: dict[str, dict]) -> list[dict]:
     records: list[dict] = []
-    for prefix, kind, directory in discover_dirs(leaf_dir):
-        if kind == "hard" and not include_hard:
-            continue
+    for prefix, directory in discover_dirs(leaf_dir):
         entry = registry[PREFIX_TO_KEY[prefix]]
         files = sorted(
             (item for item in directory.iterdir()
@@ -223,7 +218,6 @@ def collect_frames(leaf_dir: Path, registry: dict[str, dict],
                 "common": entry["common"],
                 "path": str(path),
                 "prefix": prefix,
-                "kind": kind,
                 "video": video,
             }
             records.append(record)
@@ -237,17 +231,12 @@ def assign_splits(records: list[dict], mode: str) -> dict[str, list[dict]]:
     grouped: dict[str, list[dict]] = defaultdict(list)
     for record in records:
         if mode == "all":
-            split = "hard_test" if record["kind"] == "hard" else "test"
+            split = "test"
         else:
             video = record["video"]
-            if record["kind"] == "hard":
-                if video != "leaf04":
-                    continue
-                split = "hard_test"
-            else:
-                if video not in PREFIX_TO_SPLIT:
-                    fail(f"unexpected video prefix {video!r} in {record['filename']}")
-                split = PREFIX_TO_SPLIT[video]
+            if video not in PREFIX_TO_SPLIT:
+                fail(f"unexpected video prefix {video!r} in {record['filename']}")
+            split = PREFIX_TO_SPLIT[video]
         record["split"] = split
         grouped[split].append(record)
     for rows in grouped.values():
@@ -295,7 +284,7 @@ def check_counts(label: str, rows: list[dict], expected: dict[str, int]) -> None
 def check_video_isolation(grouped: dict[str, list[dict]]) -> None:
     videos = {
         split: {row["video"] for row in grouped.get(split, [])}
-        for split in ("train", "val", "test", "hard_test")
+        for split in ("train", "val", "test")
     }
     for split, expected in EXPECTED_VIDEO_PREFIXES.items():
         if videos[split] != expected:
@@ -308,24 +297,13 @@ def check_video_isolation(grouped: dict[str, list[dict]]) -> None:
                  f"{first} and {second}")
     print("  video prefixes: " + " ".join(
         f"{split}={sorted(videos[split])}" for split in
-        ("train", "val", "test", "hard_test")))
-
-
-def check_hard_test_leaf04(grouped: dict[str, list[dict]]) -> None:
-    bad = [row["filename"] for row in grouped.get("hard_test", [])
-           if row["video"] != "leaf04"]
-    if bad:
-        fail(f"hard_test contains non-leaf04 frames: {bad[:5]}")
-    non_hard = [row["filename"] for row in grouped.get("hard_test", [])
-                if row["kind"] != "hard"]
-    if non_hard:
-        fail(f"hard_test contains normal frames: {non_hard[:5]}")
+        ("train", "val", "test")))
 
 
 def check_sha_leakage(grouped: dict[str, list[dict]]) -> dict:
     """Report cross-split duplicate content by SHA-256.
 
-    A hard failure is raised only when train/val/test share identical content.
+    A hard failure is raised when train/val/test share identical content.
     """
     split_of: dict[str, set[str]] = defaultdict(set)
     rows_of: dict[str, list[dict]] = defaultdict(list)
@@ -353,19 +331,10 @@ def check_sha_leakage(grouped: dict[str, list[dict]]) -> dict:
         fail(f"SHA-256 leakage across train/val/test: {len(core_cross)} groups "
              f"({examples})")
 
-    hard_overlap = sum(
-        1 for row in grouped.get("hard_test", [])
-        if "hard_test" in split_of[row["sha256"]]
-        and (split_of[row["sha256"]] - {"hard_test"})
-    )
-    if hard_overlap:
-        print(f"  note: {hard_overlap} hard_test rows also appear byte-identically "
-              f"in the normal manifests")
     return {
         "unique_sha256": len(rows_of),
         "cross_split_duplicate_groups": len(core_cross),
         "within_split_duplicate_groups": within_duplicates,
-        "hard_test_duplicate_rows": hard_overlap,
     }
 
 
@@ -455,7 +424,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--leaf-dir", required=True,
                         help="live frame root, e.g. data/leaf")
     parser.add_argument("--mode", required=True, choices=("all", "video-split"),
-                        help="all: full test/hard_test; video-split: leaf01-03/05/04")
+                        help="all: full normal test; video-split: "
+                             "leaf01-03/05/04")
     parser.add_argument("--registry", required=True,
                         help="class_registry.json (5 classes) or _all32.json")
     parser.add_argument("--out", required=True, help="output directory")
@@ -470,14 +440,10 @@ def main(argv: list[str] | None = None) -> int:
     registry = load_registry(registry_path)
     print(f"registry: {len(registry)} classes loaded")
 
-    records = collect_frames(leaf_dir, registry, include_hard=True)
-    normal_count = sum(1 for record in records if record["kind"] == "normal")
-    hard_count = sum(1 for record in records if record["kind"] == "hard")
-    print(f"discovered frames: normal={normal_count} hard={hard_count}")
-    if normal_count != sum(EXPECTED_ALL_NORMAL.values()):
-        fail(f"normal frame total {normal_count} != 432")
-    if hard_count != sum(EXPECTED_ALL_HARD.values()):
-        fail(f"hard frame total {hard_count} != 227")
+    records = collect_frames(leaf_dir, registry)
+    print(f"discovered frames: normal={len(records)}")
+    if len(records) != sum(EXPECTED_ALL_NORMAL.values()):
+        fail(f"normal frame total {len(records)} != 432")
 
     grouped = assign_splits(records, args.mode)
     attach_hashes(records)
@@ -486,23 +452,21 @@ def main(argv: list[str] | None = None) -> int:
     print("count validation:")
     if args.mode == "all":
         check_counts("test", grouped.get("test", []), EXPECTED_ALL_NORMAL)
-        check_counts("hard_test", grouped.get("hard_test", []), EXPECTED_ALL_HARD)
         if len(grouped.get("test", [])) != 432:
             fail(f"test expected 432 rows, got {len(grouped.get('test', []))}")
     else:
-        for split in ("train", "val", "test", "hard_test"):
+        for split in ("train", "val", "test"):
             check_counts(split, grouped.get(split, []), EXPECTED_VIDEO_COUNTS[split])
             if len(grouped.get(split, [])) != VIDEO_SPLIT_TOTALS[split]:
                 fail(f"{split}: expected {VIDEO_SPLIT_TOTALS[split]} rows, "
                      f"got {len(grouped.get(split, []))}")
         check_video_isolation(grouped)
-        check_hard_test_leaf04(grouped)
 
     # ---- SHA-256 leakage ------------------------------------------------- #
     print("leakage validation:")
     check_sha_leakage(grouped)
     if args.mode == "video-split":
-        all_rows = [row for split in ("train", "val", "test", "hard_test")
+        all_rows = [row for split in ("train", "val", "test")
                     for row in grouped.get(split, [])]
         dhash_near_duplicates(all_rows)
 
@@ -517,8 +481,7 @@ def main(argv: list[str] | None = None) -> int:
         print(f"  wrote {as_posix(path)} ({len(rows)} rows)")
 
     print("re-read validation:")
-    expected_totals = ({"test": sum(EXPECTED_ALL_NORMAL.values()),
-                        "hard_test": sum(EXPECTED_ALL_HARD.values())}
+    expected_totals = ({"test": sum(EXPECTED_ALL_NORMAL.values())}
                        if args.mode == "all" else
                        {split: VIDEO_SPLIT_TOTALS[split]
                         for split in OUTPUT_SPLITS[args.mode]})

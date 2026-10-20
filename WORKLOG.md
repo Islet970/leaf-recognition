@@ -458,3 +458,24 @@
   - 主代理目视检查 E3a 样本网格/准确率柱状、E3b 普通/困难组合图，中文与数值正确
 - 提交: `feat(train): 完成 32 类训练与实景子集评测`
 - 遗留问题 / 下一步: 报告撰写与网页（Grad-CAM、摄像头、模型切换）；E3c 已按用户确认取消
+
+---
+
+## [2026-10-20 10:00] T5.9 取消困难帧测试并清理 hard 产物
+
+- 执行代理: 子代理（修改 `build_live_dataset.py`，opus / medium）+ 主代理（清理、计划、验证）
+- 原因: 困难帧共 227 张，但每类仅 2–13 张（海桐 2 张），分布过于不均衡，不适合作为评测集
+- 改动:
+  - `tools/build_live_dataset.py`：只扫描 `*_test`，完全忽略 `*_test_hard`；`--mode all` 只写 `test.csv`，`--mode video-split` 只写 `train/val/test.csv`；删除 hard 常量、分组、输出与校验
+  - 删除 `data/splits/{live_all,live5,live_all32}/hard_test.csv`
+  - 删除 `pic/` 下所有 `*_hard*` 图/CSV：`spec-train-live-test`、`spec-train-live-test-all`、`live-train-test`
+  - **保留** `data/leaf/*_test_hard/` 的 227 张原始图片，不删除、不改动
+  - 图片目录按用户实际改名对齐：`pic/spec-train-live-test*`、`pic/live-train-test`
+  - `plans.md` 与 `AGENTS.md` 中的路径、困难帧说明同步更新
+- 验证:
+  - `find data/splits pic -iname '*hard*'` → 空（无 hard 清单/图/CSV）
+  - 清单仍正确：live_all 432；live5 301/79/52；live_all32 432；视频前缀严格分离
+  - 原始困难帧 227 张（45/39/50/40/53）SHA-256 前后一致，未被修改
+  - `tools/build_live_dataset.py` 中 hard 仅出现在“跳过/不使用”的注释与逻辑中
+- 提交: `fix(eval): 取消困难帧测试并清理 hard 产物`
+- 遗留问题 / 下一步: 报告与网页；后续所有评测只用普通 `_test` 432 张

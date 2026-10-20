@@ -9,7 +9,7 @@
 - [data/Leaves/](data/Leaves/) 是 **Flavia 公开数据集的扁平副本**：1798 张 1600×1200 JPEG，文件名 1001–3621，**没有类别子文件夹**，类别由编号区间决定。
 - **类别映射以本计划 §13 的 32 类表为准**：Flavia 编号 1–12、14–33（无 13），编号区间、学名、英文名、中文名均已核对。项目内**没有也不需要 `cato.txt`**；后续脚本、注册表、网页一律不再依赖它，旧文档中的“cato label”统一理解为 Flavia 原始编号。
 - **分类校验已完成**：32/32 编号一致、32/32 区间一致，无需重新编码；结果已落盘为 [data/Flavia类别对照表.md](data/Flavia类别对照表.md)（32 类全表、1798 张、五类子集划分表）。
-- **实景视频帧已抽取（当前版本）**：`data/leaf/<class>_test/` 共 **432 张**普通实景帧（83/96/100/86/67），`data/leaf/<class>_test_hard/` 共 **227 张**困难实景帧（45/39/50/40/53）；文件名前缀 `leaf01`–`leaf05` 表示 5 段视频，可按视频划分 train/val/test。`data/test_preview/` 有预览与抽帧统计。旧版 791 张清单已被当前数据取代。
+- **实景视频帧已抽取（当前版本）**：`data/leaf/<class>_test/` 共 **432 张**普通实景帧（83/96/100/86/67）；`data/leaf/<class>_test_hard/` 的 227 张困难帧保留但不参与测试/训练（分布失衡，已取消困难帧评测）。文件名前缀 `leaf01`–`leaf05` 表示 5 段视频，可按视频划分 train/val/test。`data/test_preview/` 有预览与抽帧统计。旧版 791 张清单已被当前数据取代。
 - [Desktop/Leaves/](../Leaves/) 下的 5 个学名文件夹是 Flavia 白底扫描图，可与 `data/Leaves` 对应区间互相核对；训练与评测仍以 `data/Leaves` 为准。
 - 报告模板要求：A/B/C/D 四模型对比、训练 loss/acc 曲线、测试 loss/acc、至少 3 个样本对比、消融实验，以及支持模型切换/摄像头/上传的网页。
 - 本机 **无 NVIDIA GPU**：Ryzen 7 7840HS（8C/16T）、15.2 GB RAM；`torch_env` 为 CPU 版 PyTorch 2.5.1；缺 scikit-learn、matplotlib、pandas、flask、tqdm。
@@ -24,7 +24,7 @@
 | 后续扩展 | 全 32 类（编号 1–12、14–33），1798 张；通过 `--classes` 配置切换，不改代码 |
 | 划分 | 按类分层 6:2:2，固定 seed，**seed 按 Flavia 编号生成**，扩类时已有类别的划分不变 |
 | 基础网络 | MobileNetV3-Small（ImageNet 预训练），分类头 `num_classes` 可配置（5 或 32） |
-| 实景照片 | **已有 432 张普通 + 227 张困难实景帧**（`data/leaf/*_test/`、`*_test_hard/`）；5 类可按视频划分实景训练集；`data/campus/<key>/` 继续预留其他物种拍摄 |
+| 实景照片 | **已有 432 张普通实景帧**（`data/leaf/*_test/`）；另有 227 张困难帧保留但不参与测试；5 类可按视频划分实景训练集；`data/campus/<key>/` 继续预留其他物种拍摄 |
 | 最终模型名 | **LeafNet-MSC**（Multi-Scale Fusion + CBAM，基于 MobileNetV3-Small） |
 | 现有交付物 | `data/Flavia类别对照表.md`（已完成） |
 | 待新增交付物 | `data/class_map.json`（32 类映射，供程序读取）、`data/zh_names.json`、`data/class_registry.json`、`data/class_registry_all32.json`、5 类与 32 类两套训练清单、实景测试清单 |
@@ -161,13 +161,13 @@
 
 ### 1.5 实景测试帧与视频级划分（`data/leaf`，当前版本）
 
-现状（2026-10-19 复核）：
+现状（2026-10-20 更新）：
 
 - `data/leaf/<class>_test/`：**432 张**普通实景帧（camphor 83 / cercis 96 / lagerstroemia 100 / osmanthus 86 / pittosporum 67）。
-- `data/leaf/<class>_test_hard/`：**227 张**困难实景帧（45/39/50/40/53）。
+- `data/leaf/<class>_test_hard/` 的 227 张困难帧保留在磁盘上，但**不参与任何测试或训练**：每类仅 2–13 张（海桐 2 张），分布过于不均衡，已取消困难帧评测。
 - 文件名前缀 `leaf01`–`leaf05` 表示 5 段视频。旧版 791 张清单已被当前数据取代；`data/splits/real/all.csv` 保留但不再使用。
 
-目录 → 类别映射（普通/困难目录共用）：
+目录 → 类别映射：
 
 | 目录前缀 | 中文名 | Flavia 编号 | key |
 |---|---|---:|---|
@@ -179,21 +179,19 @@
 
 视频级划分（用于实景训练 L5，防止同一段视频的相近帧泄漏）：
 
-| split | 视频 | 普通 `_test` | 困难 `_test_hard` |
-|---|---|---:|---:|
-| train | leaf01 / leaf02 / leaf03 | 301 | 143 |
-| val | leaf05 | 79 | 49 |
-| test | leaf04 | 52 | **35（仅 leaf04 作困难测试）** |
-
-> `_test_hard` 的 leaf01/02/03/05 帧不参与主训练，保留作可选的困难增强实验。困难测试集每类只有 2–13 张（海桐 2 张），报告需注明样本量。
+| split | 视频 | 普通 `_test` |
+|---|---|---:|
+| train | leaf01 / leaf02 / leaf03 | 301 |
+| val | leaf05 | 79 |
+| test | leaf04 | 52 |
 
 清单生成（T5.1）：
 
-- `data/splits/live_all/{test,hard_test}.csv`：E1（W5）与 E3b（W32）用**全量** `_test` / `_test_hard`（432 / 227），5 类标签；
-- `data/splits/live5/{train,val,test,hard_test}.csv`：E2（L5）视频级划分（301 / 79 / 52；困难测试 35）；
-- `data/splits/live_all32/{test,hard_test}.csv`：E3b 用 32 类注册表的 `py_label`（5 类映射到 0–31）；
+- `data/splits/live_all/test.csv`：E1（W5）与 E3b（W32）用**全量普通实景**（432），5 类标签；
+- `data/splits/live5/{train,val,test}.csv`：E2（L5）视频级划分（301 / 79 / 52）；
+- `data/splits/live_all32/test.csv`：E3b 用 32 类注册表的 `py_label`（5 类映射到 0–31）；
 - CSV 列沿用 `filename,image_id,flavia_label,py_label,key,zh_name,scientific,common,split,sha256`；`filename` 为相对 `data/leaf` 的路径（如 `camphor_test/leaf04_000010.jpg`）。
-- **红线**：同一视频不得跨 split；生成后做 SHA-256 跨 split 查重与 dHash 近重复报告；实景帧不得混入 Flavia 白底 train/val/test。
+- **红线**：同一视频不得跨 split；生成后做 SHA-256 跨 split 查重与 dHash 近重复报告；实景帧不得混入 Flavia 白底 train/val/test；困难帧不参与评测。
 
 ---
 
@@ -348,7 +346,7 @@ cd /c/Users/Voidkongbai/Desktop/DeepLearning
 "C:/Anaconda/envs/torch_env/python.exe" tools/prepare_cache.py --src data/Leaves --dst data/cache/leaf_320 --long-edge 320
 # 3) 五类训练
 "C:/Anaconda/envs/torch_env/python.exe" -m src.train --models A B C D E --data data/splits/5class --registry data/class_registry.json --num-classes 5 --cache data/cache/leaf_320 --epochs 40 --batch-size 32 --seed 42
-# 4) 实景清单（T5.1；当前 432 普通 + 227 困难，按实验类型生成）
+# 4) 实景清单（T5.1；只用 432 张普通实景，困难帧不参与测试）
 "C:/Anaconda/envs/torch_env/python.exe" tools/build_live_dataset.py --leaf-dir data/leaf --mode all --registry data/class_registry.json --out data/splits/live_all
 "C:/Anaconda/envs/torch_env/python.exe" tools/build_live_dataset.py --leaf-dir data/leaf --mode video-split --registry data/class_registry.json --out data/splits/live5
 ```
@@ -398,7 +396,7 @@ cd /c/Users/Voidkongbai/Desktop/DeepLearning
 | `fig4_8_gradcam_examples.png` | 4.3/5.2 | Grad-CAM 示例（可选） |
 | `fig4_9_robustness.png` | 4.3/5.2 | 压力测试对比（强烈建议，见下） |
 
-> A/B/C/D 四模型对比图由 `tools/make_comparison_plots.py` 生成（每次训练完成后必须重绘）：五类白底图存 `pic/spec-train-test/`，32 类白底图存 `pic/spec-train-test-all/`；实景实验图分别存 `pic/spe-train-live-test/`、`pic/spelive-train-test/`、`pic/spe-train-live-test-all/`（E3c 不执行）。文件名为 `fig4_1_train_loss_ABCD.png`、`fig4_2_train_acc_ABCD.png`、`fig4_3_test_loss_bar.png`、`fig4_4_test_acc_bar.png`、`fig4_6_sample_predictions_ABCD.png`。
+> A/B/C/D 四模型对比图由 `tools/make_comparison_plots.py` 生成（每次训练完成后必须重绘）：五类白底图存 `pic/spec-train-test/`，32 类白底图存 `pic/spec-train-test-all/`；实景实验图分别存 `pic/spec-train-live-test/`、`pic/live-train-test/`、`pic/spec-train-live-test-all/`（E3c 不执行）。文件名为 `fig4_1_train_loss_ABCD.png`、`fig4_2_train_acc_ABCD.png`、`fig4_3_test_loss_bar.png`、`fig4_4_test_acc_bar.png`、`fig4_6_sample_predictions_ABCD.png`。
 
 **样本选择规则**（`src/report_figures.py`，不要硬编码文件名）：
 1. A 错、D 对的样本（若有）；
@@ -421,7 +419,7 @@ Flavia 是白底扫描图，5 类差异明显，A/B/C/D 很可能都接近 100%�
 - 五模型 val loss 持续下降（末轮约 0.10–0.13），val acc 始终 100%，train acc 约 99% → **没有经典过拟合**迹象；问题不是训练轮数过多。
 - 仅用图片四角背景 RGB 的最近质心分类器在 test 上达到 **63.8%**；16×16 灰度形状达到 **93.1%**；第 17 类（桂花）背景 RGB `(236.5, 244.1, 232.9)` 明显偏绿，其余类接近纯白 → **背景/采集批次与类别存在相关性**，CNN 可利用这类捷径。
 - dHash 近邻：test 图在 train 中 18/58 有距离 ≤6 的近邻（≤4 为 6/58），最近邻像素 MAD 约 8.8–9.6，未发现完全重复图；存在同种叶片的相似性，但不足以解释全部高分。
-- 因此后续必须用 **432 张普通 + 227 张困难实景帧**（§1.5）和压力测试判断泛化；32 类训练只能增加数据多样性，不能单独消除背景捷径。
+- 因此后续必须用 **432 张普通实景帧**（§1.5）和压力测试判断泛化；32 类训练只能增加数据多样性，不能单独消除背景捷径。
 
 ### 4.4 中文字体
 
@@ -522,7 +520,7 @@ webapp/
 
 目录：`data/campus/<key>/*.jpg`，5 个 key 与注册表一致（`cercis_chinensis`、`pittosporum_tobira`、`cinnamomum_camphora`、`osmanthus_fragrans`、`lagerstroemia_indica`）。建议每类至少 10–20 张，至少覆盖 2 个拍摄地点。
 
-> **现状**：`data/leaf` 已有 432 张普通 + 227 张困难实景帧；5 类视频级划分与实景训练见 §1.5 与 §15。`data/campus/<key>/` 仅用于后续补拍 Flavia 之外的物种；不得把测试帧直接当训练集。
+> **现状**：`data/leaf` 已有 432 张普通实景帧（另有 227 张困难帧保留但不参与测试）；5 类视频级划分与实景训练见 §1.5 与 §15。`data/campus/<key>/` 仅用于后续补拍 Flavia 之外的物种；不得把测试帧直接当训练集。
 
 - `tools/import_campus.py`：EXIF 校正、转 RGB、长边缩到 1024、JPEG q=90、去元数据；SHA-256 + dHash 去重；Laplacian 方差 < 30 的模糊图剔除；生成 contact sheet 供人工确认。
 - 划分：`data/splits/campus_support.csv` / `campus_test.csv`，每类 70/30 且 support 不超过 10 张；**绝不与 Flavia 的 train/val/test 混合**。
@@ -551,8 +549,8 @@ DeepLearning/
 │  ├─ splits/
 │  │  ├─ 5class/              # 五类白底 train/val/test/all.csv（178/58/58）
 │  │  ├─ all32/               # 32 类白底（1082/358/358）
-│  │  ├─ live_all/            # E1/E3b：全量实景 _test/_test_hard（432/227）
-│  │  ├─ live5/               # E2：实景视频级划分（301/79/52 + hard_test 35）
+│  │  ├─ live_all/            # E1/E3b：全量普通实景（432）
+│  │  ├─ live5/               # E2：实景视频级划分（301/79/52）
 │  │  └─ live_all32/          # E3b：32 类标签的实景清单
 │  ├─ dataset/                # --materialize 生成，人工检查用
 │  ├─ cache/leaf_320/         # 训练缓存
@@ -585,10 +583,10 @@ DeepLearning/
 ├─ pic/
 │  ├─ spec-train-test/        # W5 白底训练标准 5 图（已完成）
 │  ├─ spec-train-test-all/    # E3a：W32 白底训练标准图
-│  ├─ spe-train-live-test/    # E1：W5 → 实景 _test/_test_hard
-│  ├─ spe-train-live-test-all/ # E3b：W32 → 实景 5 类子集
-│  ├─ spelive-train-test/     # E2：L5 实景训练 → 实景测试
-│  └─ spelive-train-test-all/ # E3c：用户确认不执行（仅预留）
+│  ├─ spec-train-live-test/    # E1：W5 → 普通实景（432）
+│  ├─ spec-train-live-test-all/ # E3b：W32 → 实景 5 类子集
+│  ├─ live-train-test/     # E2：L5 实景训练 → 实景测试
+│  └─ live-train-test-all/ # E3c：用户确认不执行（仅预留）
 └─ results/{figures,tables,predictions,screenshots}/
 ```
 
@@ -596,14 +594,14 @@ DeepLearning/
 
 1. **环境**：安装 5 个缺失包；跑 `python -c "import sklearn, matplotlib, pandas, flask, tqdm"` 验证。
 2. **数据**：生成 `data/class_map.json` → `build_dataset.py` → 检查 294/178/58/58、无交集 → `make_dataset_preview.py` 看 5 类图。（分类校验已完成，无需再做）
-3. **实景清单（T5.1）**：`build_live_dataset.py` 生成 live_all / live5（含 hard_test.csv）/ live_all32；检查 432/227、301/79/52、35，且无跨 split 泄漏。
+3. **实景清单（T5.1）**：`build_live_dataset.py` 生成 live_all / live5 / live_all32（只用普通 `_test`）；检查 432、301/79/52、432，且无跨 split 泄漏。
 4. **模型冒烟**：A 训练 1 epoch，确认 loss 有限、checkpoint 可加载、val acc > 20%。（已完成）
 5. **五类白底全量训练（W5）**：A/B/C/D/E，40 epoch（已完成）。
-6. **E1**：W5 → `_test` / `_test_hard`，输出 `pic/spe-train-live-test/` 两张组合柱状图。
-7. **E2（L5）**：实景训练 A/B/C/D（leaf01-03 train / leaf05 val / leaf04 test），输出 `pic/spelive-train-test/` 标准图 + 困难测试图。
+6. **E1**：W5 → 普通 `_test`（432），输出 `pic/spec-train-live-test/` 一张组合柱状图。
+7. **E2（L5）**：实景训练 A/B/C/D（leaf01-03 train / leaf05 val / leaf04 test），输出 `pic/live-train-test/` 标准图。
 8. **E3a（W32）**：生成 all32 数据/缓存，训练 A/B/C/D，白底 test 标准图 → `pic/spec-train-test-all/`。
-9. **E3b**：W32 → 实景 5 类子集，输出 `pic/spe-train-live-test-all/` 两张组合柱状图。
-10. **E3c（L32）**：用户确认其它种类实景不做演示，**不执行**；目录 `pic/spelive-train-test-all/` 仅保留不使用。
+9. **E3b**：W32 → 实景 5 类子集，输出 `pic/spec-train-live-test-all/` 两张组合柱状图。
+10. **E3c（L32）**：用户确认其它种类实景不做演示，**不执行**；目录 `pic/live-train-test-all/` 仅保留不使用。
 11. **网页与报告素材**：网页、截图、压力测试、报告图表。
 
 ---
@@ -615,18 +613,18 @@ DeepLearning/
 - [x] Flavia 32 类的编号与区间已核对：32/32 一致，无需重新编码 — 2026-10-19
 - [x] `data/Flavia类别对照表.md` 已生成且 32 行齐全（1798 张） — 2026-10-19
 - [x] `data/Leaves` 的 1798 张图片可按编号区间唯一归属 32 类；五类 4/12/15/17/20 共 294 张 — 2026-10-19
-- [x] `data/leaf` 实景帧已抽取并去重：432 张普通 + 227 张困难（5 类）— 2026-10-19（当前版本）
+- [x] `data/leaf` 实景帧已抽取并去重：432 张普通实景帧；227 张困难帧保留但不参与测试 — 2026-10-20（更新）
 - [ ] `data/class_map.json` 与 §13、`data/Flavia类别对照表.md` 逐项一致（32 类、编号、区间、名称）。
 - [ ] 五类清单恰好 294 张，train/val/test = 178/58/58，三集合两两不相交且并集完整。
 - [ ] `class_registry.json` 的 `flavia_label/key/zh_name/range` 与 `class_map.json` + 公开表一致；五类子集 `py_label` 为 0–4。
 - [x] checkpoint 内 `class_keys`、`flavia_labels`、`num_classes` 与注册表一致 — 2026-10-19
 - [x] `--classes all` 生成 32 类清单：总数 1798，train/val/test = 1082/358/358 — 2026-10-19
-- [x] 实景清单生成：live_all（432/227）、live5（301/79/52 + hard_test 35）、live_all32；类别映射正确、无跨 split 泄漏 — 2026-10-19
+- [x] 实景清单生成：live_all（432）、live5（301/79/52）、live_all32（432）；无 hard 清单、无跨 split 泄漏 — 2026-10-19
 - [x] 每个模型 forward 输出 `[1, num_classes]`（五类 `[1,5]`，全类 `[1,32]`）；参数量与 §2 表格一致；预训练权重确实加载（missing keys 仅新模块/头）— 2026-10-19
 - [x] A 冒烟训练 1 epoch 正常；全量训练每个 run 有 `best.pt`、`history.csv`、`train.log` — 2026-10-19
 - [ ] test 预测 CSV 五类每个模型 58 行、全类每个模型 358 行，各类概率和为 1。
-- [x] E1 实景评测每个模型 432 / 227 行；E2 每个模型 52 / 35 行；E3b 使用 32 类标签；A/B/C/D 顺序一致 — 2026-10-19
-- [x] E1 / E2 / E3a / E3b 图表全部生成到指定目录；E3c 不执行（用户确认）— 2026-10-19
+- [x] E1 实景评测每个模型 432 行；E2 每个模型 52 行；E3b 432 行（32 类标签）；A/B/C/D 顺序一致 — 2026-10-19
+- [x] E1 / E2 / E3a / E3b 图表全部生成到指定目录；E3c 不执行（用户确认）；无 hard 图/CSV — 2026-10-20
 - [ ] 报告所需图表全部生成，中文无方框，A/B/C/D 顺序一致。
 - [ ] 网页能加载 A/B/C/D；上传、拍照、实时、模型切换、Top-3、Grad-CAM 均可用。
 - [ ] 摄像头轮询不重叠；切后台暂停；拒绝权限时有提示且上传仍可用。
@@ -668,7 +666,7 @@ DeepLearning/
 | 3.3 最终模型 | LeafNet-MSC 结构图与数据流 |
 | 4.1 环境 | Windows 11、Ryzen 7 7840HS、15.2GB、CPU PyTorch 2.5.1、Python 3.10.21 |
 | 4.2 训练过程 | §3.3 参数表 + `training_summary.csv` 的每轮耗时/曲线 |
-| 4.3 训练结果 | `fig4_1`–`fig4_6`、测试 loss/acc 表、`table4_5_real_scene.csv`（432 普通 + 227 困难实景；E1/E2/E3b） |
+| 4.3 训练结果 | `fig4_1`–`fig4_6`、测试 loss/acc 表、`table4_5_real_scene.csv`（432 张普通实景；E1/E2/E3b） |
 | 4.4 消融 | A / E(+CBAM) / C(+MSFF) / D(两者) + `fig4_7`，并给出交互项 `(D−C)−(E−A)` |
 | 4.5 可视化网站 | §5 网页 + 4 张摄像头 + 5 张上传截图 |
 | 5.1/5.2 收获与展望 | 域差异、小测试集、压力测试、实景微调；后续扩到 32 类的方案与初步结果 |
@@ -828,13 +826,14 @@ DeepLearning/
 ### 14.5 实景与全类扩展实验（新增计划，尚未执行）
 
 - [x] T5.1 生成实景清单（live_all / live5 / live_all32）并做视频级泄漏检查 — 2026-10-19
-- [x] T5.2 E1：W5 五类白底模型 → `_test` / `_test_hard`，输出 `pic/spe-train-live-test/` 两张组合柱状图 — 2026-10-19
-- [x] T5.3 E2：L5 实景训练（leaf01-03 / leaf05 / leaf04，A/B/C/D）→ 标准图 + 困难测试，输出 `pic/spelive-train-test/` — 2026-10-19
+- [x] T5.2 E1：W5 五类白底模型 → 普通 `_test`（432），输出 `pic/spec-train-live-test/` 一张组合柱状图 — 2026-10-19
+- [x] T5.3 E2：L5 实景训练（leaf01-03 / leaf05 / leaf04，A/B/C/D）→ 标准图，输出 `pic/live-train-test/` — 2026-10-19
 - [x] T5.4 生成 all32 数据/注册表/缓存（1798 → 1082/358/358）— 2026-10-19
 - [x] T5.5 E3a：W32 训练（A/B/C/D）→ 白底 test 标准图，输出 `pic/spec-train-test-all/` — 2026-10-19
-- [x] T5.6 E3b：W32 → 实景 5 类子集，输出 `pic/spe-train-live-test-all/` 两张组合柱状图 — 2026-10-19
+- [x] T5.6 E3b：W32 → 实景 5 类子集，输出 `pic/spec-train-live-test-all/` 两张组合柱状图 — 2026-10-19
 - [x] T5.7 E3c 不执行（用户确认：其它种类实景不做演示）
 - [x] T5.8 全部产物校验、WORKLOG 记录与 git 提交 — 2026-10-19
+- [x] T5.9 取消困难帧测试：移除 hard 清单/图/CSV，保留原始 `_test_hard` 图片 — 2026-10-20
 
 ---
 
@@ -846,7 +845,7 @@ DeepLearning/
 
 | 量级 | 类别 | 白底数据 | 实景数据 | 四个对比模型 |
 |---|---|---|---|---|
-| **S（5 类）** | Flavia 4/12/15/17/20 | `data/Leaves` 294 张（178/58/58） | `data/leaf` 432 普通 + 227 困难 | A / B / C / D |
+| **S（5 类）** | Flavia 4/12/15/17/20 | `data/Leaves` 294 张（178/58/58） | `data/leaf` 432 张普通实景（困难帧不参与） | A / B / C / D |
 | **A（32 类）** | Flavia 1–12、14–33 | `data/Leaves` 1798 张（1082/358/358） | 当前只有 5 类实景，其余 27 类待补 | A / B / C / D |
 
 - **每个量级固定四个模型 A/B/C/D**；E（仅 CBAM）只用于消融，不进入四模型对比图。
@@ -861,27 +860,27 @@ DeepLearning/
 | 数据集 | 总数 | camphor | cercis | lagerstroemia | osmanthus | pittosporum |
 |---|---:|---:|---:|---:|---:|---:|
 | `*_test`（普通） | 432 | 83 | 96 | 100 | 86 | 67 |
-| `*_test_hard`（困难） | 227 | 45 | 39 | 50 | 40 | 53 |
+
+> `*_test_hard`（227 张）保留原始图片，但**不参与测试/训练**：每类仅 2–13 张（海桐 2 张），分布失衡，已取消困难帧评测。
 
 **视频级划分（E2/L5）**：
 
-| split | 视频 | 普通 `_test` | 困难 `_test_hard` |
-|---|---|---:|---:|
-| train | leaf01 / leaf02 / leaf03 | 301 | 143（不参与主训练） |
-| val | leaf05 | 79 | 49（不参与主训练） |
-| test | leaf04 | 52 | 35 |
+| split | 视频 | 普通 `_test` |
+|---|---|---:|
+| train | leaf01 / leaf02 / leaf03 | 301 |
+| val | leaf05 | 79 |
+| test | leaf04 | 52 |
 
-- `_test_hard` 的 leaf01/02/03/05 帧保留作可选困难增强实验；主训练只使用普通 `_test` 的 leaf01-03。
 - 同一视频不得跨 split；生成清单后做 SHA-256 跨 split 查重与 dHash 近重复报告。
-- 困难测试集每类仅 2–13 张（海桐 2 张），报告中必须注明样本量，不能据此夸大差异。
+- 困难帧不参与任何测试，不生成清单/图表。
 
 **清单**：
 
 | 清单 | 用途 | 规模 |
 |---|---|---:|
-| `data/splits/live_all/{test,hard_test}.csv` | E1、E3b：全量实景 | 432 / 227 |
-| `data/splits/live5/{train,val,test,hard_test}.csv` | E2：视频级划分 | 301 / 79 / 52 / 35 |
-| `data/splits/live_all32/{test,hard_test}.csv` | E3b：32 类标签 | 432 / 227 |
+| `data/splits/live_all/test.csv` | E1、E3b：全量普通实景 | 432 |
+| `data/splits/live5/{train,val,test}.csv` | E2：视频级划分 | 301 / 79 / 52 |
+| `data/splits/live_all32/test.csv` | E3b：32 类标签 | 432 |
 | `data/splits/all32/{train,val,test,all}.csv` | E3a：32 类白底 | 1082 / 358 / 358 |
 
 - 实景 CSV 的 `filename` 是相对 `data/leaf` 的路径（如 `camphor_test/leaf04_000010.jpg`）。
@@ -892,16 +891,17 @@ DeepLearning/
 
 | 编号 | 量级 | 训练 | 测试 | 模型目录 | 图片目录 |
 |---|---|---|---|---|---|
-| **E1** | S | W5 白底（已有） | `_test` 432 / `_test_hard` 227 | `runs/5class` | `pic/spe-train-live-test/` |
-| **E2** | S | L5 实景（301 train） | `_test` leaf04 52 / `_test_hard` leaf04 35 | `runs/live5` | `pic/spelive-train-test/` |
+| **E1** | S | W5 白底（已有） | `_test` 432 | `runs/5class` | `pic/spec-train-live-test/` |
+| **E2** | S | L5 实景（301 train） | `_test` leaf04 52 | `runs/live5` | `pic/live-train-test/` |
 | **E3a** | A | W32 白底（1082 train） | Leaves test 358 | `runs/all32` | `pic/spec-train-test-all/` |
-| **E3b** | A | W32 白底 | 实景 5 类子集 432 / 227 | `runs/all32` | `pic/spe-train-live-test-all/` |
+| **E3b** | A | W32 白底 | 实景 5 类子集 432 | `runs/all32` | `pic/spec-train-live-test-all/` |
 | ~~E3c~~ | A | —（用户确认其它种类实景不做演示） | — | — | — |
 
 - **E1** 不重新训练，只做推理评测。
 - **E2** 每个模型训练 40 epoch，产物与 W5 相同：`best.pt/last.pt/history.*/config.json/test_metrics.json/train.log`。
 - **E3b** 的 32 类模型只在 5 个有实景数据的类别上评测；其他 27 类的预测一律算错。报告写清“实景覆盖 5/32 类”，不能声称 32 类实景泛化。
 - **E3c 不执行**：用户确认其它种类实景不做演示；32 类模型只做白底测试（E3a）和 5 类实景子集测试（E3b）。
+- **困难帧**：227 张保留原始图片，但不参与任何测试/训练，所有实验只用普通 `_test`。
 
 ### 15.4 输出与图表命名
 
@@ -909,22 +909,22 @@ DeepLearning/
 
 **E3a 白底标准 5 图**：`pic/spec-train-test-all/`；当前目录中的同名图是占位副本，W32 训练后必须重绘覆盖。
 
-**E1 / E3b（每张图含两个子图：测试准确率柱状 + 测试 loss 柱状；四模型同图）**：
+**E1 / E3b（一张图含两个子图：测试准确率柱状 + 测试 loss 柱状；四模型同图）**：
 
-- `pic/spe-train-live-test/test_ABCD.png`（`_test`）
-- `pic/spe-train-live-test/test_hard_ABCD.png`（`_test_hard`）
-- `pic/spe-train-live-test-all/test_ABCD.png`、`test_hard_ABCD.png`
-- 同时输出 `metrics_test.csv` / `metrics_test_hard.csv`，列为 `model,accuracy,macro_f1,ce_loss,n`。
+- `pic/spec-train-live-test/test_ABCD.png`（普通 `_test` 432）
+- `pic/spec-train-live-test-all/test_ABCD.png`（普通 `_test` 432，32 类标签）
+- 同时输出 `metrics_test.csv`，列为 `model,accuracy,macro_f1,ce_loss,n`。
+- 困难帧不生成图/CSV。
 
-**E2（AGENTS.md §7 标准 5 张 + 困难测试 2 张）**：
+**E2（AGENTS.md §7 标准 5 张）**：
 
-- `pic/spelive-train-test/fig4_1_train_loss_ABCD.png`
-- `pic/spelive-train-test/fig4_2_train_acc_ABCD.png`
-- `pic/spelive-train-test/fig4_3_test_loss_bar.png`
-- `pic/spelive-train-test/fig4_4_test_acc_bar.png`
-- `pic/spelive-train-test/fig4_6_sample_predictions_ABCD.png`
-- `pic/spelive-train-test/test_hard_ABCD.png`（困难测试 acc+loss 组合图）
-- `pic/spelive-train-test/metrics_test.csv`、`metrics_test_hard.csv`
+- `pic/live-train-test/fig4_1_train_loss_ABCD.png`
+- `pic/live-train-test/fig4_2_train_acc_ABCD.png`
+- `pic/live-train-test/fig4_3_test_loss_bar.png`
+- `pic/live-train-test/fig4_4_test_acc_bar.png`
+- `pic/live-train-test/fig4_6_sample_predictions_ABCD.png`
+- `pic/live-train-test/metrics_test.csv`
+- 困难帧不生成图/CSV。
 
 **E3a（标准 5 张，白底测试）**：
 
@@ -934,7 +934,7 @@ DeepLearning/
 - `pic/spec-train-test-all/fig4_4_test_acc_bar.png`
 - `pic/spec-train-test-all/fig4_6_sample_predictions_ABCD.png`
 
-**E3c（不执行）**：用户确认其它种类实景不做演示；`pic/spelive-train-test-all/` 目录保留但留空。
+**E3c（不执行）**：用户确认其它种类实景不做演示；`pic/live-train-test-all/` 目录保留但留空。
 
 ### 15.5 执行步骤与命令
 
@@ -949,7 +949,7 @@ DeepLearning/
   --leaf-dir data/leaf --mode all --registry data/class_registry_all32.json --out data/splits/live_all32
 ```
 
-验收：432/227、301/79/52/35、432/227；无同一视频跨 split；SHA-256 跨 split 重复为 0 或明确报告。
+验收：432、301/79/52、432；无同一视频跨 split；SHA-256 跨 split 重复为 0 或明确报告；不生成任何 hard 清单。
 
 **T5.2 E1（W5 → 实景）**：
 
@@ -957,11 +957,7 @@ DeepLearning/
 "C:/Anaconda/envs/torch_env/python.exe" tools/evaluate_live.py \
   --runs runs/5class --models A B C D --registry data/class_registry.json \
   --manifest data/splits/live_all/test.csv --image-root data/leaf \
-  --out pic/spe-train-live-test --tag test
-"C:/Anaconda/envs/torch_env/python.exe" tools/evaluate_live.py \
-  --runs runs/5class --models A B C D --registry data/class_registry.json \
-  --manifest data/splits/live_all/hard_test.csv --image-root data/leaf \
-  --out pic/spe-train-live-test --tag test_hard
+  --out pic/spec-train-live-test --tag test
 ```
 
 **T5.3 E2（L5 实景训练 + 标准图）**：
@@ -974,11 +970,7 @@ DeepLearning/
   --output runs/live5 --num-workers 0 --threads 8
 "C:/Anaconda/envs/torch_env/python.exe" tools/make_comparison_plots.py \
   --runs runs/live5 --models A B C D --data data/splits/live5 \
-  --image-root data/leaf --registry data/class_registry.json --out pic/spelive-train-test --dpi 160
-"C:/Anaconda/envs/torch_env/python.exe" tools/evaluate_live.py \
-  --runs runs/live5 --models A B C D --registry data/class_registry.json \
-  --manifest data/splits/live5/hard_test.csv --image-root data/leaf \
-  --out pic/spelive-train-test --tag test_hard
+  --image-root data/leaf --registry data/class_registry.json --out pic/live-train-test --dpi 160
 ```
 
 **T5.4 生成 all32 数据与缓存**：
@@ -1011,14 +1003,10 @@ DeepLearning/
 "C:/Anaconda/envs/torch_env/python.exe" tools/evaluate_live.py \
   --runs runs/all32 --models A B C D --registry data/class_registry_all32.json \
   --manifest data/splits/live_all32/test.csv --image-root data/leaf \
-  --out pic/spe-train-live-test-all --tag test
-"C:/Anaconda/envs/torch_env/python.exe" tools/evaluate_live.py \
-  --runs runs/all32 --models A B C D --registry data/class_registry_all32.json \
-  --manifest data/splits/live_all32/hard_test.csv --image-root data/leaf \
-  --out pic/spe-train-live-test-all --tag test_hard
+  --out pic/spec-train-live-test-all --tag test
 ```
 
-**T5.7 E3c（不执行）**：用户确认其它种类实景不做演示，跳过 L32 训练；不生成 `runs/live32`，不写 `pic/spelive-train-test-all/`。
+**T5.7 E3c（不执行）**：用户确认其它种类实景不做演示，跳过 L32 训练；不生成 `runs/live32`，不写 `pic/live-train-test-all/`。
 
 **T5.8 验收**：按 §15.8 逐项检查，更新 `plans.md` 勾选，写日志并提交。
 
@@ -1026,9 +1014,9 @@ DeepLearning/
 
 | 工具 | 改动 | 用途 |
 |---|---|---|
-| `tools/build_live_dataset.py` | 新增 | 解析 `_test`/`_test_hard`，按 5 类或 32 类注册表生成清单；`--mode all` / `--mode video-split`；SHA-256/dHash 泄漏检查 |
-| `tools/evaluate_live.py` | 新增 | 加载 A/B/C/D checkpoint，在实景清单上计算 accuracy/macro-F1/CE，画“`_test` / `_test_hard` 两张组合柱状图”，输出 metrics CSV |
-| `tools/make_comparison_plots.py` | 修改 | 增加 `--image-root`，支持实景样本图；增加 `--test-tag`/hard 测试支持；默认路径保持兼容 |
+| `tools/build_live_dataset.py` | 新增 | 只解析 `_test`（忽略 `_test_hard`），按 5 类或 32 类注册表生成清单；`--mode all` / `--mode video-split`；SHA-256/dHash 泄漏检查 |
+| `tools/evaluate_live.py` | 新增 | 加载 A/B/C/D checkpoint，在实景清单上计算 accuracy/macro-F1/CE，画一张组合柱状图（普通 `_test`），输出 metrics CSV |
+| `tools/make_comparison_plots.py` | 修改 | 增加 `--image-root`，支持实景样本图；默认路径保持兼容 |
 | `src/train.py` | 不改 | 已支持 `--image-root`、`--data`、`--output`、`--num-classes` |
 | `src/data.py` | 不改 | 已支持相对路径 `filename` 与 `image_root` |
 | `tools/build_dataset.py` / `prepare_cache.py` | 不改 | 复用现有 all32 与缓存逻辑 |
@@ -1036,7 +1024,7 @@ DeepLearning/
 ### 15.7 风险与依赖
 
 - **32 类实景不做**：用户确认其它种类实景不做演示；E3c 不执行，不构成风险。不得用白底图冒充实景，也不得把 5 类结果说成 32 类泛化。
-- **困难测试样本少**：每类 2–13 张，海桐仅 2 张；报告用 Wilson 置信区间说明不确定性，不能只报一个百分比。
+- **困难帧不做**：227 张保留在磁盘上，但每类仅 2–13 张（海桐 2 张），分布失衡，已取消所有困难帧测试；不要再用困难帧报指标。
 - **实景训练集小且不均衡**：301 张、最多 76 / 最少 43；报告每类 recall，必要时加 class weight（但四个模型必须一致）。
 - **白底捷径**：E1/E3b 的实景结果才是跨域泛化的主要证据；白底 test 接近饱和不能说明模型学到了叶片形状。
 - **视频级泄漏**：务必按 leaf01-03 / 05 / 04 划分，禁止随机拆帧；再做 SHA-256/dHash 检查。
@@ -1046,10 +1034,11 @@ DeepLearning/
 ### 15.8 验收标准
 
 - [x] T5.1 三个实景清单生成，计数与 §15.2 一致，无跨 split 泄漏；
-- [x] E1：`pic/spe-train-live-test/` 下 `test_ABCD.png`、`test_hard_ABCD.png` 存在且非空，四模型 acc/loss 数值正确；
-- [x] E2：`runs/live5` 四个模型各有 7 个产物；`pic/spelive-train-test/` 下 5 张标准图 + 1 张困难测试组合图存在且非空；样本网格 3×4；
+- [x] E1：`pic/spec-train-live-test/` 下 `test_ABCD.png` 存在且非空，四模型 acc/loss 数值正确；
+- [x] E2：`runs/live5` 四个模型各有 7 个产物；`pic/live-train-test/` 下 5 张标准图存在且非空；样本网格 3×4；
 - [x] E3a：`runs/all32` 四个模型各有 7 个产物；`pic/spec-train-test-all/` 下 5 张标准图存在且非空；
-- [x] E3b：`pic/spe-train-live-test-all/` 下 2 张图存在且非空；报告明确“实景覆盖 5/32 类”；
+- [x] E3b：`pic/spec-train-live-test-all/` 下 `test_ABCD.png` 存在且非空；报告明确“实景覆盖 5/32 类”；
 - [x] E3c：不执行（用户确认其它种类实景不做演示）；
+- [x] 困难帧不参与测试；`pic/` 下无 `*hard*` 图/CSV；
 - [x] 所有图的中文正常、四模型顺序一致、数值与 metrics CSV 对得上；
 - [x] `plans.md` 勾选、`WORKLOG.md` 记录、git 提交完成。
