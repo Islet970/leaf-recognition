@@ -1,5 +1,5 @@
 /* ============================================================
-   校园叶片识别与可解释性可视化系统 — 识别页逻辑
+   知叶 — 识别页逻辑
    原生 JavaScript ES6，全局命名空间 window.LeafApp
    ============================================================ */
 
@@ -70,6 +70,8 @@
     uploading: false,
     demoBusy: false,
     lastResult: null,
+    resultPending: false,
+    gradcamPending: false,
     camera: {
       stream: null,
       timer: null,
@@ -79,6 +81,7 @@
       paused: false,
       inFlight: false,
       photoBusy: false,
+      photoSeq: 0,
       errors: 0
     },
     modal: {
@@ -456,40 +459,58 @@
     state.group = group;
 
     var models = modelsInGroup();
-    var stillValid = false;
-    if (state.model) {
-      models.forEach(function (model) {
-        if (state.model.group === state.group.id &&
-            model.group === state.group.id &&
-            model.id === state.model.id &&
-            model.available) {
-          stillValid = true;
-        }
-      });
-    }
-    if (!stillValid) {
-      state.model = null;
-      models.forEach(function (model) {
-        if (!state.model && model.available) {
-          state.model = model;
-        }
-      });
-    }
+    var previousId = state.model ? state.model.id : '';
+    var nextModel = null;
+    /* 新组里仍有同名可用模型时保持当前选择 */
+    models.forEach(function (model) {
+      if (!nextModel && model.available && model.id === previousId) {
+        nextModel = model;
+      }
+    });
+    /* 否则退回到新组第一个可用模型 */
+    models.forEach(function (model) {
+      if (!nextModel && model.available) {
+        nextModel = model;
+      }
+    });
+    state.model = nextModel;
 
     renderGroupSwitch();
     renderModels();
     renderLegend();
+
+    /* 点击已选中的组：只刷新 UI，不作废在途的拍照/上传重识别请求 */
+    if (!changed) {
+      return;
+    }
+
     /* 丢弃切换前在途的摄像头帧结果 */
     state.cameraSeq += 1;
 
-    if (changed) {
-      resetResult(silent ? '' : (models.length
-        ? '已切换到「' + (group.label || group.id) + '」，请重新识别'
-        : '该模型组暂无可用模型'));
+    if (silent) {
+      return;
     }
 
-    if (!silent && !models.length) {
-      toast('该模型组暂无模型', 'warn', 4000);
+    if (!models.length || !state.model) {
+      resetResult('该模型组暂无可用模型');
+      /* 作废在途上传请求，避免迟到响应把旧组结果显示到无模型的新组上；
+         同时手动解除 busy（finalizer 因 seq 不匹配不会再执行） */
+      state.uploadSeq += 1;
+      state.uploading = false;
+      setUploadBusy(false);
+      toast(models.length ? '该模型组暂无可用模型' : '该模型组暂无模型', 'warn', 4000);
+      /* 实时/拍照中切到无可用模型的组：明确提示识别已暂停 */
+      if (state.camera.running) {
+        setCameraStatus(state.modelsReady
+          ? '当前模型组暂无可用模型，识别已暂停'
+          : '模型尚未加载完成，识别已暂停',
+          state.modelsReady ? 'error' : '');
+      }
+      return;
+    }
+    /* 保留当前上传图片/拍照快照，用新组选中的模型重新识别 */
+    if (!reRecognizeCurrent()) {
+      resetResult('请先选择图片或拍照，切换模型后将自动重新识别');
     }
   }
 
@@ -582,7 +603,59 @@
     state.model = model;
     state.cameraSeq += 1;
     renderModels();
-    resetResult('已切换到模型 ' + (model.name || model.id) + '，请重新识别');
+
+    /* 不清除当前上传预览/拍照快照，直接用新模型重新识别 */
+    if (!reRecognizeCurrent()) {
+      resetResult('请先选择图片或拍照，切换模型后将自动重新识别');
+    }
+  }
+
+  /* 切换模型/模型组后的统一重识别入口。
+     有拍照快照或上传图片时自动用当前模型重新请求；
+     实时摄像头交给下一帧自然使用新模型；没有素材时只提示，不伪造结果。 */
+  function reRecognizeCurrent(reason) {
+    var gradcamOnly = reason === 'gradcam';
+    if (!state.modelsReady || !state.group || !state.model) {
+      return false;
+    }
+
+    if (cameraPanelActive()) {
+      var snapshot = currentCameraSnapshot();
+      if (snapshot) {
+        if (!gradcamOnly) {
+          markResultPending();
+        } else {
+          showGradcamPending();
+        }
+        recognizeSnapshot(snapshot, true, reason);
+        return true;
+      }
+      if (state.camera.running || state.camera.starting) {
+        /* 实时轮询会自然带上新模型/新开关状态，不额外重发，避免与在途帧重叠 */
+        setCameraStatus(gradcamOnly
+          ? 'Grad-CAM 已开启，下一帧将显示热力图'
+          : '已切换模型，下一帧将使用新模型', '');
+        if (gradcamOnly) {
+          showGradcamPending();
+          /* 已在途的帧返回后会立刻安排下一帧，这里只加速尚未开始的轮询 */
+          scheduleCameraTick(0);
+        }
+        return true;
+      }
+      /* 摄像头页未开启且无快照：不回退去识别看不见的上传图片 */
+      return false;
+    }
+
+    if (state.uploadFile) {
+      if (!gradcamOnly) {
+        markResultPending();
+      } else {
+        showGradcamPending();
+      }
+      predictFile(state.uploadFile, true, reason);
+      return true;
+    }
+    return false;
   }
 
   function topkForGroup() {
@@ -861,6 +934,10 @@
       return;
     }
     if (!state.modelsReady || !state.model) {
+      setCameraStatus(state.modelsReady
+        ? '当前模型组暂无可用模型，识别已暂停'
+        : '模型尚未加载完成，识别已暂停',
+        state.modelsReady ? 'error' : '');
       scheduleCameraTick(CAMERA_INTERVAL_MS);
       return;
     }
@@ -878,7 +955,7 @@
     }
 
     state.camera.inFlight = true;
-    sendFrame(dataUrl, false).then(function (result) {
+    sendFrame(dataUrl).then(function (result) {
       if (!result || !result.fresh) {
         return;
       }
@@ -937,7 +1014,14 @@
     state.camera.errors = 0;
     D.cameraSnapshot.hidden = true;
     D.cameraSnapshot.removeAttribute('src');
-    setCameraStatus('实时识别中…', 'live');
+    if (state.modelsReady && state.model) {
+      setCameraStatus('实时识别中…', 'live');
+    } else {
+      setCameraStatus(state.modelsReady
+        ? '当前模型组暂无可用模型，识别已暂停'
+        : '模型尚未加载完成，识别已暂停',
+        state.modelsReady ? 'error' : '');
+    }
     updateCameraControls();
     scheduleCameraTick(0);
   }
@@ -972,6 +1056,7 @@
       D.cameraSnapshot.removeAttribute('src');
     }
     setCameraStatus('摄像头已关闭', '');
+    settleGradcamAfterCameraStop();
     updateCameraControls();
   }
 
@@ -1055,44 +1140,123 @@
 
     if (!state.modelsReady || !state.model) {
       toast('模型尚未就绪，照片暂未识别', 'warn', 4200);
+      resetResult('模型尚未就绪，照片未识别，请稍后重新拍照');
+      return;
+    }
+
+    /* 新快照开始即进入 pending，失败时由 resetResult 清掉旧结果与热力图 */
+    markResultPending('正在识别照片…');
+    recognizeSnapshot(dataUrl, false);
+  }
+
+  /* 当前仍在展示的拍照快照（dataURL）；停止摄像头或继续实时后会被清空 */
+  function currentCameraSnapshot() {
+    if (!D.cameraSnapshot || D.cameraSnapshot.hidden) {
+      return '';
+    }
+    var src = D.cameraSnapshot.getAttribute('src') || '';
+    return /^data:image\//.test(src) ? src : '';
+  }
+
+  /* 用当前模型识别快照。reRecognize=true 表示由模型/模型组切换触发。 */
+  function recognizeSnapshot(dataUrl, reRecognize, reason) {
+    if (!state.modelsReady || !state.model) {
       return;
     }
 
     state.camera.photoBusy = true;
     updateCameraControls();
-    sendFrame(dataUrl, true).catch(function (err) {
-      if (err && err.__cameraStale) {
+    if (reRecognize) {
+      setCameraStatus(reason === 'gradcam'
+        ? '正在重新生成 Grad-CAM…'
+        : '正在用新模型重新识别照片…', '');
+    }
+
+    /* Grad-CAM 开关状态在发请求时读取，拍照/重识别都不再强制请求热力图 */
+    var request = sendFrame(dataUrl);
+    var seq = request.seq;
+    state.camera.photoSeq = seq;
+
+    request.then(function () {
+      /* 只有最新一次快照请求负责收尾（实时帧会推进 cameraSeq，但不影响 photoSeq） */
+      if (seq !== state.camera.photoSeq) {
         return;
       }
-      toast('拍照识别失败：' + err.message, 'error', 5200);
-    }).then(function () {
       state.camera.photoBusy = false;
       updateCameraControls();
+      /* 请求已被停止摄像头/切页作废：不要留下过期的 pending 标记 */
+      if (seq !== state.cameraSeq) {
+        if (resultIsPending() && !state.camera.running) {
+          resetResult('重识别已取消，请重新拍照或上传图片');
+        }
+        return;
+      }
+      if (state.camera.running && state.camera.paused &&
+          state.activeSection === 'recognize' && cameraPanelActive()) {
+        setCameraStatus('已拍照并暂停实时识别，点击「继续」恢复', '');
+      }
+    }, function (err) {
+      if (seq !== state.camera.photoSeq) {
+        return;
+      }
+      state.camera.photoBusy = false;
+      updateCameraControls();
+      if (err && err.__cameraStale) {
+        /* 请求已被停止摄像头/切页作废：不要留下过期的 pending 标记 */
+        if (resultIsPending() && !state.camera.running) {
+          resetResult('拍照识别已取消，请重新拍照或上传图片');
+        }
+        return;
+      }
+      var message = '拍照识别失败：' + err.message;
+      toast(message, 'error', 5200);
+      /* 重识别/新拍照失败时不要继续把旧结果当作新结果展示 */
+      if (D.resultBody && !D.resultBody.hidden) {
+        if (reason === 'gradcam') {
+          /* 只是热力图请求失败：保留识别结果，不把整块结果清空 */
+          if (gradcamEnabled()) {
+            showGradcamUnavailable('Grad-CAM 生成失败，请稍后重试');
+          } else {
+            hideGradcam();
+          }
+        } else if (reRecognize) {
+          resetResult('重新识别失败：' + err.message + '，请重新拍照或稍后重试');
+        } else {
+          resetResult('拍照识别失败：' + err.message + '，请重新拍照或稍后重试');
+        }
+      }
+      /* 失败时状态栏显示真实错误，不写“已拍照并暂停…”的成功文案 */
+      if (state.camera.running && state.camera.paused &&
+          state.activeSection === 'recognize' && cameraPanelActive()) {
+        setCameraStatus(message, 'error');
+      }
     });
   }
 
   function isCameraRequestFresh(seq) {
+    /* 上传请求在途不影响摄像头结果：两者各有独立的来源与序号 */
     return seq === state.cameraSeq &&
       state.camera.running &&
-      !state.uploading &&
       state.activeSection === 'recognize' &&
       cameraPanelActive();
   }
 
-  function sendFrame(dataUrl, forceGradcam) {
+  function sendFrame(dataUrl) {
     var seq = ++state.cameraSeq;
+    /* 热力图是否请求完全由开关决定：拍照快照与实时帧共用同一规则 */
+    var wantGradcam = gradcamEnabled();
     var payload = {
       model: state.model ? state.model.id : '',
       group: state.group ? state.group.id : '',
       image_data_url: dataUrl,
-      gradcam: Boolean(forceGradcam || D.gradcamToggle.checked),
+      gradcam: wantGradcam,
       topk: topkForGroup()
     };
 
-    return postJSON('/api/predict_frame', payload).then(function (data) {
+    var request = postJSON('/api/predict_frame', payload).then(function (data) {
       var fresh = isCameraRequestFresh(seq);
       if (fresh) {
-        renderResult(data);
+        renderResult(data, wantGradcam);
       }
       return { data: data, fresh: fresh };
     }, function (err) {
@@ -1102,6 +1266,10 @@
       }
       throw err;
     });
+
+    /* 调用方用它判断自己的请求是否已被后续请求取代 */
+    request.seq = seq;
+    return request;
   }
 
   /* ============================================================
@@ -1192,9 +1360,12 @@
 
     if (!ensureModelReady(false)) {
       setUploadStatus('模型尚未就绪，图片已预览，可稍后重新选择', 'error');
+      resetResult('模型尚未就绪，图片未识别，请稍后重新选择');
       return;
     }
 
+    /* 新上传开始即进入 pending，避免请求失败时残留上一张图的结果与热力图 */
+    markResultPending('正在识别图片…');
     predictFile(file);
   }
 
@@ -1211,35 +1382,92 @@
     return '';
   }
 
-  function predictFile(file) {
+  /* 响应对应的模型/模型组是否仍是当前选择（配合 uploadSeq 防止迟到响应覆盖） */
+  function uploadRequestIsCurrent(groupId, modelId) {
+    return Boolean(state.group && state.model &&
+      state.group.id === groupId && state.model.id === modelId);
+  }
+
+  function predictFile(file, reRecognize, reason) {
     state.uploading = true;
     setUploadBusy(true);
-    setUploadStatus('正在识别：' + file.name + ' …', '');
+    setUploadStatus(reRecognize
+      ? (reason === 'gradcam'
+        ? '正在重新生成 Grad-CAM…'
+        : '正在用新模型重新识别…')
+      : '正在识别：' + file.name + ' …', '');
 
     var seq = ++state.uploadSeq;
+    var wantGradcam = gradcamEnabled();
+    var requestGroupId = state.group.id;
+    var requestModelId = state.model.id;
     var form = new FormData();
     form.append('image', file, file.name || 'upload.png');
-    form.append('model', state.model.id);
-    form.append('group', state.group.id);
+    form.append('model', requestModelId);
+    form.append('group', requestGroupId);
     form.append('topk', String(topkForGroup()));
-    form.append('gradcam', D.gradcamToggle.checked ? '1' : '0');
+    form.append('gradcam', wantGradcam ? '1' : '0');
 
     return fetchJSON('/api/predict', {
       method: 'POST',
       body: form
     }).then(function (data) {
-      if (seq === state.uploadSeq) {
-        renderResult(data);
-        setUploadStatus('识别完成 · ' + file.name, '');
+      /* 过期请求的结果不得覆盖新模型的结果 */
+      if (seq !== state.uploadSeq) {
+        return;
       }
+      /* 请求归属校验：请求发出后模型/模型组已变化（含切到无可用模型的组）时，
+         迟到响应不得再用旧组/旧模型结果覆盖当前界面 */
+      if (!uploadRequestIsCurrent(requestGroupId, requestModelId)) {
+        return;
+      }
+      /* 上传面板已被摄像头取代时，只更新上传页状态，不写共享结果区 */
+      if (cameraPanelActive()) {
+        setUploadStatus('识别完成 · ' + file.name + '（已切换到摄像头，结果未覆盖显示）', '');
+        if (resultIsPending() && !state.camera.running && !state.camera.starting &&
+            !currentCameraSnapshot()) {
+          resetResult('上传结果未覆盖显示；返回「上传图片」可重新识别');
+        }
+        return;
+      }
+      renderResult(data, wantGradcam);
+      setUploadStatus('识别完成 · ' + file.name, '');
     }).catch(function (err) {
-      if (seq === state.uploadSeq) {
-        setUploadStatus('识别失败：' + err.message, 'error');
+      if (seq !== state.uploadSeq) {
+        return;
+      }
+      if (!uploadRequestIsCurrent(requestGroupId, requestModelId)) {
+        return;
+      }
+      setUploadStatus('识别失败：' + err.message, 'error');
+      if (cameraPanelActive()) {
+        if (resultIsPending() && !state.camera.running && !state.camera.starting &&
+            !currentCameraSnapshot()) {
+          resetResult('上传重识别失败，已切换到摄像头；返回「上传图片」可重试');
+        }
+        return;
       }
       toast('识别失败：' + err.message, 'error', 5600);
+      /* 新上传/重识别失败时不要继续展示旧结果与旧热力图 */
+      if (D.resultBody && !D.resultBody.hidden) {
+        if (reason === 'gradcam') {
+          /* 只是热力图请求失败：保留识别结果，不清空整块结果 */
+          if (gradcamEnabled()) {
+            showGradcamUnavailable('Grad-CAM 生成失败，请稍后重试');
+          } else {
+            hideGradcam();
+          }
+        } else if (reRecognize) {
+          resetResult('重新识别失败：' + err.message + '，请重新选择图片或稍后重试');
+        } else {
+          resetResult('识别失败：' + err.message + '，请重新选择图片或稍后重试');
+        }
+      }
     }).then(function () {
-      state.uploading = false;
-      setUploadBusy(false);
+      if (seq === state.uploadSeq) {
+        state.uploading = false;
+        setUploadBusy(false);
+      }
     });
   }
 
@@ -1281,6 +1509,7 @@
     D.uploadPreviewWrap.hidden = true;
     D.uploadFileName.textContent = '—';
     setUploadStatus('选择图片后将自动识别', '');
+    resetResult('选择图片后将自动识别');
   }
 
   /* ============================================================
@@ -1293,16 +1522,102 @@
     }
     D.gradcamToggle.addEventListener('change', function () {
       if (!this.checked) {
-        D.gradcamPanel.hidden = true;
+        /* 关闭：立即隐藏并清掉旧热力图，避免在任何后续响应里残留 */
+        hideGradcam();
         return;
       }
-      if (state.lastResult && state.lastResult.gradcam_png_base64) {
-        showGradcam(state.lastResult.gradcam_png_base64);
-      }
+      refreshGradcamForCurrent();
     });
+
+    /* 后端返回的 base64 若无法解码，降级为提示而不是破图 */
+    if (D.gradcamImage) {
+      D.gradcamImage.addEventListener('error', function () {
+        if (!gradcamEnabled()) {
+          return;
+        }
+        showGradcamUnavailable('Grad-CAM 暂不可用');
+      });
+    }
+  }
+
+  function gradcamEnabled() {
+    return Boolean(D.gradcamToggle && D.gradcamToggle.checked);
+  }
+
+  function hideGradcam() {
+    state.gradcamPending = false;
+    if (D.gradcamPanel) {
+      D.gradcamPanel.hidden = true;
+    }
+    if (D.gradcamImage) {
+      D.gradcamImage.hidden = true;
+      D.gradcamImage.removeAttribute('src');
+    }
+    if (D.gradcamUnavailable) {
+      D.gradcamUnavailable.hidden = true;
+    }
+  }
+
+  function showGradcamUnavailable(message) {
+    if (!gradcamEnabled()) {
+      hideGradcam();
+      return;
+    }
+    state.gradcamPending = false;
+    if (D.gradcamPanel) {
+      D.gradcamPanel.hidden = false;
+    }
+    if (D.gradcamImage) {
+      D.gradcamImage.hidden = true;
+      D.gradcamImage.removeAttribute('src');
+    }
+    if (D.gradcamUnavailable) {
+      D.gradcamUnavailable.textContent = message || 'Grad-CAM 暂不可用';
+      D.gradcamUnavailable.hidden = false;
+    }
+  }
+
+  /* 打开开关后为正在生成的请求占位；没有识别结果时不显示任何热力图 */
+  function showGradcamPending() {
+    if (!gradcamEnabled() || !D.resultBody || D.resultBody.hidden) {
+      return;
+    }
+    showGradcamUnavailable('正在生成 Grad-CAM…');
+    state.gradcamPending = true;
+  }
+
+  /* 停止摄像头/离开识别页后，pending 占位不会再有响应来更新，主动收尾 */
+  function settleGradcamAfterCameraStop() {
+    if (state.gradcamPending) {
+      hideGradcam();
+    }
+  }
+
+  /* 开关打开：有上传图片/拍照快照则重新请求；实时交给下一帧；
+     没有任何素材时只提示、不发请求、不伪造热力图。 */
+  function refreshGradcamForCurrent() {
+    if (!gradcamEnabled()) {
+      hideGradcam();
+      return;
+    }
+    if (reRecognizeCurrent('gradcam')) {
+      return;
+    }
+    if (D.resultBody && !D.resultBody.hidden) {
+      showGradcamUnavailable(cameraPanelActive() && state.uploadFile
+        ? '请切回「上传图片」后重新识别'
+        : '暂无可解释的图片');
+    } else {
+      hideGradcam();
+    }
   }
 
   function showGradcam(base64) {
+    if (!gradcamEnabled()) {
+      hideGradcam();
+      return;
+    }
+    state.gradcamPending = false;
     D.gradcamPanel.hidden = false;
     D.gradcamImage.hidden = false;
     D.gradcamUnavailable.hidden = true;
@@ -1314,13 +1629,14 @@
      识别结果渲染
      ============================================================ */
 
-  function renderResult(data) {
+  function renderResult(data, requestGradcam) {
     if (!data || !Array.isArray(data.topk) || !data.topk.length) {
       toast('识别接口返回了空结果', 'error', 4800);
       return;
     }
 
     state.lastResult = data;
+    state.resultPending = false;
     D.resultEmpty.hidden = true;
     D.resultBody.hidden = false;
 
@@ -1355,17 +1671,19 @@
 
     renderTopk(data.topk);
 
-    var base64 = data.gradcam_png_base64;
-    if (base64) {
-      showGradcam(base64);
-    } else if (D.gradcamToggle.checked) {
-      D.gradcamPanel.hidden = false;
-      D.gradcamImage.hidden = true;
-      D.gradcamImage.removeAttribute('src');
-      D.gradcamUnavailable.hidden = false;
-      D.gradcamUnavailable.textContent = 'Grad-CAM 暂不可用';
+    /* 渲染以当前开关为准：关闭时无论响应是否带 base64 都不显示热力图 */
+    if (!gradcamEnabled()) {
+      hideGradcam();
+    } else if (data.gradcam_available && data.gradcam_png_base64) {
+      showGradcam(data.gradcam_png_base64);
+    } else if (requestGradcam === false) {
+      /* 该响应对应的是关闭开关时的请求，等下一次带 gradcam 的响应 */
+      showGradcamUnavailable('正在生成 Grad-CAM…');
     } else {
-      D.gradcamPanel.hidden = true;
+      /* 后端明确不可用/生成失败：给通用提示，不暴露异常堆栈，也不显示破图 */
+      showGradcamUnavailable(data.gradcam_error
+        ? 'Grad-CAM 生成失败，请稍后重试'
+        : 'Grad-CAM 暂不可用');
     }
   }
 
@@ -1416,11 +1734,30 @@
     });
   }
 
+  /* 重识别进行中：在旧结果的模型标签上明确标注，避免误认为已是新模型结果 */
+  function markResultPending(message) {
+    if (!D.resultModelTag || !D.resultBody || D.resultBody.hidden) {
+      return;
+    }
+    state.resultPending = true;
+    D.resultModelTag.textContent = message || '正在用新模型重新识别…';
+    D.resultModelTag.hidden = false;
+    /* 新结果返回前不保留旧结果的热力图 */
+    if (gradcamEnabled()) {
+      showGradcamPending();
+    }
+  }
+
+  function resultIsPending() {
+    return state.resultPending;
+  }
+
   function resetResult(message) {
     state.lastResult = null;
+    state.resultPending = false;
     D.resultEmpty.hidden = false;
     D.resultBody.hidden = true;
-    D.gradcamPanel.hidden = true;
+    hideGradcam();
 
     var small = D.resultEmpty.querySelector('small');
     if (small) {

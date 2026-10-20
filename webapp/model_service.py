@@ -1,7 +1,7 @@
 """模型注册与 CPU 推理服务（plans.md §5.2）。
 
 职责：
-- 扫描 runs/spec5 与 runs/spec32 下 A/B/C/D 的 best.pt（E 仅用于消融，不加载）；
+- 扫描 runs/spec5、runs/spec32 与 runs/live5 下 A/B/C/D 的 best.pt（E 仅用于消融，不加载）；
 - 校验 checkpoint 的 class_keys / flavia_labels / num_classes 与注册表一致；
 - 读取同目录 test_metrics.json 的 accuracy / macro_f1 / ce_loss；
 - 提供 list_models / predict / health 供 Flask 路由调用。
@@ -29,21 +29,31 @@ if str(PROJECT_ROOT) not in sys.path:
 from src.data import build_eval_transform  # noqa: E402
 from src.models import MODEL_NAMES, build_model  # noqa: E402
 
+from .gradcam import compute_gradcam, encode_png_base64  # noqa: E402
+
 # 网页只提供 A/B/C/D；E 仅用于消融（plans.md §5.1–§5.2）
 WEB_MODEL_IDS = ("A", "B", "C", "D")
 
+# 三个模型组：白底五类 / 白底 32 类 / 实景五类（plans.md §5.2、§14.8 T8.1）
+# 字典顺序即 /api/models 的组顺序；前端直接显示 label，不在前端硬编码。
 GROUP_SPECS: dict[str, dict[str, Any]] = {
     "spec5": {
-        "label": "五类",
+        "label": "标本（5）",
         "run_dir": "spec5",
         "registry": "data/class_registry.json",
         "num_classes": 5,
     },
     "spec32": {
-        "label": "32 类",
+        "label": "标本（32）",
         "run_dir": "spec32",
         "registry": "data/class_registry_all32.json",
         "num_classes": 32,
+    },
+    "live5": {
+        "label": "实景（5）",
+        "run_dir": "live5",
+        "registry": "data/class_registry.json",
+        "num_classes": 5,
     },
 }
 
@@ -74,7 +84,7 @@ def _center_crop_square(image: Image.Image) -> Image.Image:
 
 
 class ModelService:
-    """加载并缓存 A/B/C/D × spec5/spec32，共 8 个组内模型。"""
+    """加载并缓存 A/B/C/D × spec5/spec32/live5，共 12 个组内模型。"""
 
     def __init__(
         self,
@@ -284,10 +294,15 @@ class ModelService:
         topk: int = 3,
         gradcam: bool = False,
     ) -> dict[str, Any]:
-        """对单张 PIL 图片推理，返回 top-k 类别与耗时。
+        """对单张 PIL 图片推理，返回 top-k 类别、耗时与可选 Grad-CAM。
 
-        Grad-CAM 暂未实现（项目暂无 src/gradcam.py），统一返回
-        ``gradcam_png_base64=None`` / ``gradcam_available=False``。
+        ``gradcam=False`` 走 ``torch.no_grad()`` 快路径，行为与之前一致；
+        ``gradcam=True`` 时在同一把全局推理锁内调用 :mod:`webapp.gradcam`，
+        只做一次带梯度的 forward/backward，并复用该 logits 计算 softmax/top-k。
+        成功时返回 ``gradcam_available=True`` 与非空 ``gradcam_png_base64``；
+        生成失败时降级为普通推理（不抛 500），返回
+        ``gradcam_available=False``、``gradcam_png_base64=None``，并附
+        ``gradcam_error``。
         """
         started = time.perf_counter()
         entry = self._get_entry(group, model_id)
@@ -308,10 +323,37 @@ class ModelService:
         image = _center_crop_square(image)
         tensor = self._transform(image).unsqueeze(0)
 
+        gradcam_available = False
+        gradcam_png_base64: str | None = None
+        gradcam_error: str | None = None
+
         with self._lock:
-            with torch.no_grad():
-                logits = model(tensor)
+            if gradcam:
+                try:
+                    logits, overlay = compute_gradcam(model, tensor, image)
+                except Exception as exc:  # Grad-CAM 失败时降级为普通推理
+                    print(
+                        f"[ModelService] {group}/{model_id} Grad-CAM 生成失败: {exc}",
+                        file=sys.stderr,
+                    )
+                    gradcam_error = "Grad-CAM 生成失败"
+                    with torch.no_grad():
+                        logits = model(tensor)
+                else:
+                    try:
+                        gradcam_png_base64 = encode_png_base64(overlay)
+                        gradcam_available = bool(gradcam_png_base64)
+                    except Exception as exc:  # 已拿到 logits，不再重复 forward
+                        print(
+                            f"[ModelService] {group}/{model_id} Grad-CAM 编码失败: {exc}",
+                            file=sys.stderr,
+                        )
+                        gradcam_error = "Grad-CAM 图像编码失败"
                 probs = torch.softmax(logits, dim=1)[0]
+            else:
+                with torch.no_grad():
+                    logits = model(tensor)
+                    probs = torch.softmax(logits, dim=1)[0]
 
         k = min(max(int(topk), 1), num_classes)
         values, indices = torch.topk(probs, k)
@@ -329,7 +371,7 @@ class ModelService:
             )
 
         latency_ms = round((time.perf_counter() - started) * 1000.0, 2)
-        return {
+        result = {
             "model": model_id,
             "model_name": loaded["model_name"],
             "group": group,
@@ -337,6 +379,9 @@ class ModelService:
             "num_classes": num_classes,
             "topk": topk_items,
             "latency_ms": latency_ms,
-            "gradcam_png_base64": None,
-            "gradcam_available": False,
+            "gradcam_png_base64": gradcam_png_base64,
+            "gradcam_available": gradcam_available,
         }
+        if gradcam_error is not None:
+            result["gradcam_error"] = gradcam_error
+        return result

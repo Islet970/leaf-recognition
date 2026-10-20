@@ -4,7 +4,9 @@
 - 忽略 ``~$*``（Office 临时文件）与隐藏文件/目录；
 - 图片（.png/.jpg/.jpeg）返回 URL 与大小；
 - CSV 返回列名、前 200 行与总行数；
-- .docx/.pdf 返回下载 URL。
+- .docx/.pdf 返回下载 URL；
+- 每个目录附带 ``charts[]`` ECharts 规格（由 ``chart_data.build_charts`` 生成，
+  文件元数据仅保留兼容，供前端后续切换为纯交互图）。
 """
 
 from __future__ import annotations
@@ -18,6 +20,8 @@ from typing import Any
 from urllib.parse import quote
 
 import pandas as pd
+
+from .chart_data import build_charts
 
 IMAGE_SUFFIXES = {".png", ".jpg", ".jpeg"}
 DOCUMENT_SUFFIXES = {".docx", ".pdf"}
@@ -58,10 +62,27 @@ class GalleryService:
         )
         for subdir in subdirs:
             files = self._scan_directory(subdir)
-            directories.append({"name": subdir.name, "files": files})
+            directories.append(
+                {
+                    "name": subdir.name,
+                    "files": files,
+                    "charts": self._build_charts(subdir),
+                }
+            )
         return {"directories": directories}
 
     # ------------------------------------------------------------------ 内部
+    def _build_charts(self, directory: Path) -> list[dict[str, Any]]:
+        """生成目录图表规格；任何异常都降级为空列表，避免 /api/gallery 500。"""
+        try:
+            return build_charts(directory.name, directory, self.project_root)
+        except Exception as exc:  # noqa: BLE001 - 看板数据失败不应影响接口
+            print(
+                f"[GalleryService] 图表生成失败 {directory}: {exc}",
+                file=sys.stderr,
+            )
+            return []
+
     def _scan_directory(self, directory: Path) -> list[dict[str, Any]]:
         entries: list[dict[str, Any]] = []
         try:

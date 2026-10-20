@@ -626,3 +626,39 @@
 - 验证结论: 计划文档自检通过；本步没有代码产物需要运行验证
 - 提交: `docs(plan): 制定知叶网页二轮修改计划`
 - 遗留问题 / 下一步: 待用户确认计划后，按 T8.1→T8.9 派发子代理实现；T8.1/T8.2/T8.4 可并行，T8.3/T8.5/T8.6/T8.7/T8.8 按依赖串行
+
+---
+
+## [2026-10-20 22:54] T8.1–T8.9 知叶网页二轮改造与交互式看板
+
+- 执行代理: 子代理（后端 T8.1/T8.4、前端 T8.3/T8.5、数据层 T8.6、看板 T8.7/T8.8、截图 T8.9，均为 opus / medium）、子代理（独立审查 4 轮，opus / medium）、主代理（拆分、集成、最终验证、勾选与提交）
+- 目标: 按用户第二轮反馈完成三模型组、知叶品牌、切换重识别、Grad-CAM 全链路、纯交互看板与统一样式
+- 改动文件:
+  - 新增 `webapp/gradcam.py`、`webapp/chart_data.py`
+  - 修改 `webapp/model_service.py`、`webapp/gallery_service.py`、`webapp/app.py`、`webapp/__init__.py`
+  - 修改 `webapp/templates/index.html`、`webapp/static/css/style.css`、`webapp/static/js/app.js`、`webapp/static/js/gallery.js`
+  - 更新/新增 `results/screenshots/` 8 张截图
+  - 更新 `plans.md` §5.2–§5.8、§8 验收项、§14.8 T8.1–T8.9 勾选
+- 功能结果:
+  - 模型组: `/api/models` 返回 `spec5 标本（5）`、`spec32 标本（32）`、`live5 实景（5）` 三组，每组 A/B/C/D，共 12 个模型全部 available
+  - 识别页: 切换模型/模型组保留上传预览或拍照快照，自动重新识别；修复点击已选中组作废在途请求、上传/摄像头结果串扰、无模型组迟到响应回流等竞态
+  - Grad-CAM: `ModelService.predict()` 在 `gradcam=True` 时同一把锁内 forward/backward，12 个模型组合均返回 768×768 PNG base64（长边≤768、短边≥128）；hook 在 finally 移除、梯度清零；上传/拍照/实时均按开关请求与显示
+  - 品牌: `<title>`、品牌、识别页标题、页脚、meta description、argparse 描述统一为“知叶 / 面向农学生的叶片识别与学习平台”，源码旧名注释清零
+  - 看板: 只渲染 ECharts；六个目录图表数 4/4/4/4/6/6；折线 x 取真实最短轮数（spec5=40、spec32=39、live5=22），不插值；柱状数值与 CSV/JSON 一致
+  - 图表样式: 横坐标 A/B/C/D（消融 A/E/C/D）且水平；图例右上角、模型全称、字号 10；melt-test 无柱顶标签、仅 tooltip；单指标柱状图 `barGap:'-100%'` 修复系列错位
+- 审查与修复:
+  - T8.3 审查发现 2 条重要竞态（已选中组误作废在途请求、上传/摄像头来源串扰），修复后 52 项 Playwright 断言 PASS
+  - T8.4 审查通过；按建议限制热力图尺寸并保证最小 128，12 组合复测通过
+  - T8.6 审查发现 NaN/Inf 会让前端 JSON.parse 失败；修复有限数校验、精确模型别名、图表 id 全局唯一、history epoch 对齐，复验通过
+  - T8.7/T8.8 审查发现单指标柱状图 4 系列错位/柱宽仅 20.7px；修复 `barGap:'-100%'` 后柱宽 44px、中心偏差 0px，定向复核 PASS
+  - T8.5 审查发现切到无可用模型组时迟到上传响应回流；修复请求归属校验、pending 清理、旧结果残留、aria-live，12 项专项 + 23 项回归 PASS
+- 命令与结果:
+  - `node --check webapp/static/js/app.js` / `gallery.js` → PASS
+  - `python -m py_compile webapp/*.py` → PASS
+  - HTTP: `/api/health` num_models=12；`/api/models` 3 组 12 可用；`/api/gallery` 图表 6/6/4/4/4/4；`/api/predict` 与 `/api/predict_frame` 三组 gradcam=1 均返回 768×768 PNG
+  - Playwright: T8.3 52 项、T8.5 23+12 项、T8.7/T8.8 定向复核、T8.9 截图 37 项，合计全部 PASS；控制台无 error/pageerror（仅故意注入非法 base64/abort 的测试网络错误）
+  - 截图: `results/screenshots/{recognition,upload_result,gradcam,switch_model,gallery,melt_test,system_actions,demo_toast}.png`，均为 1440×1000、>10 KB、非空白
+- 验证结论: 通过（T8.1–T8.9 全部勾选；§8 三条二轮验收项勾选）
+- 提交: `feat(webapp): 完成知叶网页二轮改造与交互式看板`
+- 说明: 未配置 remote，未推送；`.claude/` 为本地配置未提交；摄像头实测使用假摄像头流，真实摄像头截图仍需人工补拍
+- 遗留问题 / 下一步: 真实摄像头实拍截图（webcam_01–04）；报告 4.5 素材整理

@@ -717,9 +717,9 @@ DeepLearning/
 - [x] E1 / E2 / E3a / E3b 主测试图表全部生成到指定目录；E3c 不执行（用户确认）；hard 鲁棒性图见 §15.9 — 2026-10-20
 - [ ] 报告所需图表全部生成，中文无方框，A/B/C/D 顺序一致。
 - [x] 网页能加载 A/B/C/D；上传、拍照、实时、模型切换、Top-3 均可用 — 2026-10-20
-- [ ] 识别页三个模型组 **标本（5）／标本（32）／实景（5）** 均可加载；切换模型/模型组保留当前图片并自动重识别。
-- [ ] Grad-CAM 可视化：上传、拍照、实时均返回热力图，A/B/C/D × 三个模型组均可用。
-- [ ] 数据看板只显示交互式折线图/柱状图：无图片网格、无文档/CSV/原图下载；横坐标统一 A/B/C/D、图例右上角全称小字、melt-test 仅 tooltip 显示数值。
+- [x] 识别页三个模型组 **标本（5）／标本（32）／实景（5）** 均可加载；切换模型/模型组保留当前图片并自动重识别。 — 2026-10-20
+- [x] Grad-CAM 可视化：上传、拍照、实时均返回热力图，A/B/C/D × 三个模型组均可用。 — 2026-10-20
+- [x] 数据看板只显示交互式折线图/柱状图：无图片网格、无文档/CSV/原图下载；横坐标统一 A/B/C/D、图例右上角全称小字、melt-test 仅 tooltip 显示数值。 — 2026-10-20
 - [ ] 摄像头轮询不重叠；切后台暂停；拒绝权限时有提示且上传仍可用。
 - [ ] 4 张摄像头截图 + 5 张分类上传截图已保存到 `results/screenshots/`。
 - [ ] `tools/verify_project.py` 对文件、划分、checkpoint、指标、图表、截图逐项输出 PASS/FAIL。
@@ -952,15 +952,15 @@ DeepLearning/
 
 > 目标：按用户第二轮反馈修正识别页、品牌、Grad-CAM 与数据看板。全部完成后重新生成 `results/screenshots/` 并提交。
 
-- [ ] T8.1 后端增加第三个模型组 **实景（5）**（`runs/live5`），三个组统一命名 **标本（5）／标本（32）／实景（5）**（验收：`/api/models` 返回 3 组、每组 A/B/C/D 共 12 个模型，`available=true`；`/api/health` 的 `num_models=12`；组内 `class_keys` 与对应注册表一致）
-- [ ] T8.2 品牌文案改为 **知叶**，小字改为 **面向农学生的叶片识别与学习平台**；同步 `<title>`、页头、识别页标题、页脚与 `app.py` 描述（验收：全站不再出现旧名“校园叶片识别与可解释性可视化系统”或“叶知”；页面标题/品牌/小字与计划一致）
-- [ ] T8.3 识别页切换模型或模型组时保留当前图片/快照并自动重新识别（验收：上传图片得到结果后点击 B/C/D 或切换模型组，预览不消失、结果自动更新为新模型、无需重新选择图片；拍照快照同理；无重复请求/竞态）
-- [ ] T8.4 实现 Grad-CAM 后端 `webapp/gradcam.py` 并接入 `model_service.predict()`（验收：A/B/C/D × 三个模型组在 `gradcam=1` 时均返回非空 `gradcam_png_base64`，可被 Pillow 解码为 ≥128×128 PNG；`gradcam_available=true`；hook 在 `finally` 移除，连续 20 次调用无 hook 泄漏/显存增长）
-- [ ] T8.5 打通 Grad-CAM 前端显示与 API 链路（验收：`/api/predict` 与 `/api/predict_frame` 的 `gradcam=1` 均返回可显示热力图；开关关闭隐藏、开启后对当前图片重新请求并显示；上传、拍照、实时均可用；截图 `gradcam.png` 非空）
-- [ ] T8.6 看板图表数据层：新增 `webapp/chart_data.py`，从 `runs/spec5|spec32|live5` 的 `history.csv`/`test_metrics.json` 与 `pic/` CSV 生成 ECharts 规格，`/api/gallery` 按目录返回 `charts[]`（验收：六个目录图表数为 `4/4/4/4/6/6`；折线点数=40，系列顺序 A/B/C/D；柱状数值与 CSV/JSON 逐项一致；缺失数据返回空 charts，不造数）
-- [ ] T8.7 数据看板改为纯交互图：移除图片网格、灯箱、文档列表、CSV/原图下载入口；目录 tab 数量改为图表数（验收：页面 DOM 不存在图片灯箱/下载链接/图片网格；每个目录只出现 ECharts canvas 与标题；空目录提示“暂无可绘制图表”；控制台无报错）
-- [ ] T8.8 图表样式统一：横坐标模型名统一 A/B/C/D（消融 A/E/C/D）且水平；图例固定右上角、显示模型全称、字号 10；`melt-test` 柱状图关闭柱顶标签、仅 tooltip 悬停查看（验收：ECharts option 中 `xAxis.data`、`axisLabel.rotate=0`、`legend.right`、`legend.textStyle.fontSize=10`、`legend.data` 为全称、melt 系列 `label.show=false` 全部断言通过）
-- [ ] T8.9 二轮验收：后端 test client + Playwright + 截图 + 计划勾选 + WORKLOG + git 提交（验收：T8.1–T8.8 验收项全部 PASS；新增/更新截图 7 张；无失败项才允许提交）
+- [x] T8.1 后端增加第三个模型组 **实景（5）**（`runs/live5`），三个组统一命名 **标本（5）／标本（32）／实景（5）**（验收：`/api/models` 返回 3 组、每组 A/B/C/D 共 12 个模型，`available=true`；`/api/health` 的 `num_models=12`；组内 `class_keys` 与对应注册表一致） — 2026-10-20
+- [x] T8.2 品牌文案改为 **知叶**，小字改为 **面向农学生的叶片识别与学习平台**；同步 `<title>`、页头、识别页标题、页脚与 `app.py` 描述（验收：全站不再出现旧名“校园叶片识别与可解释性可视化系统”或“叶知”；页面标题/品牌/小字与计划一致） — 2026-10-20
+- [x] T8.3 识别页切换模型或模型组时保留当前图片/快照并自动重新识别（验收：上传图片得到结果后点击 B/C/D 或切换模型组，预览不消失、结果自动更新为新模型、无需重新选择图片；拍照快照同理；无重复请求/竞态） — 2026-10-20
+- [x] T8.4 实现 Grad-CAM 后端 `webapp/gradcam.py` 并接入 `model_service.predict()`（验收：A/B/C/D × 三个模型组在 `gradcam=1` 时均返回非空 `gradcam_png_base64`，可被 Pillow 解码为 ≥128×128 PNG；`gradcam_available=true`；hook 在 `finally` 移除，连续 20 次调用无 hook 泄漏/显存增长） — 2026-10-20
+- [x] T8.5 打通 Grad-CAM 前端显示与 API 链路（验收：`/api/predict` 与 `/api/predict_frame` 的 `gradcam=1` 均返回可显示热力图；开关关闭隐藏、开启后对当前图片重新请求并显示；上传、拍照、实时均可用；截图 `gradcam.png` 非空） — 2026-10-20
+- [x] T8.6 看板图表数据层：新增 `webapp/chart_data.py`，从 `runs/spec5|spec32|live5` 的 `history.csv`/`test_metrics.json` 与 `pic/` CSV 生成 ECharts 规格，`/api/gallery` 按目录返回 `charts[]`（验收：六个目录图表数为 `4/4/4/4/6/6`；折线 x 长度取该组四个模型的最短真实轮数，`spec5=40`、`spec32=39`、`live5=22`，不插值/不补点；系列顺序 A/B/C/D；柱状数值与 CSV/JSON 逐项一致；缺失数据返回空 charts，不造数） — 2026-10-20
+- [x] T8.7 数据看板改为纯交互图：移除图片网格、灯箱、文档列表、CSV/原图下载入口；目录 tab 数量改为图表数（验收：页面 DOM 不存在图片灯箱/下载链接/图片网格；每个目录只出现 ECharts canvas 与标题；空目录提示“暂无可绘制图表”；控制台无报错） — 2026-10-20
+- [x] T8.8 图表样式统一：横坐标模型名统一 A/B/C/D（消融 A/E/C/D）且水平；图例固定右上角、显示模型全称、字号 10；`melt-test` 柱状图关闭柱顶标签、仅 tooltip 悬停查看（验收：ECharts option 中 `xAxis.data`、`axisLabel.rotate=0`、`legend.right`、`legend.textStyle.fontSize=10`、`legend.data` 为全称、melt 系列 `label.show=false` 全部断言通过） — 2026-10-20
+- [x] T8.9 二轮验收：后端 test client + Playwright + 截图 + 计划勾选 + WORKLOG + git 提交（验收：T8.1–T8.8 验收项全部 PASS；新增/更新截图 8 张；无失败项才允许提交） — 2026-10-20
 
 > 改动边界：只改 `webapp/` 与 `results/screenshots/`，不重训模型、不改 `data/class_map.json`/注册表/划分、不删除 `pic/` 原始文件、不改 `runs/` 权重。
 

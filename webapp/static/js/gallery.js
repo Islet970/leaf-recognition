@@ -1,13 +1,26 @@
 /* ============================================================
-   校园叶片识别与可解释性可视化系统 — pic 数据看板
-   原生 JavaScript ES6 + 本地 Apache ECharts 5.6
+   知叶 — pic 数据看板（plans.md §5.7 / §14.8 T8.7–T8.8）
+   只渲染后端 /api/gallery 返回的 charts[]，使用本地 ECharts 5.x。
    ============================================================ */
 
 (function () {
   'use strict';
 
-  var PALETTE = ['#3d8b5c', '#7fb98d', '#b7a34a', '#5b8db8', '#a4626b', '#6a8f5f', '#c07f4a', '#8b7bb0'];
-  var MAX_TABLE_ROWS = 20;
+  /* 固定配色：A 蓝、B 橙、C 绿、D 红、E 紫 */
+  var MODEL_COLORS = {
+    A: '#2f6fed',
+    B: '#f28c28',
+    C: '#2e9e5b',
+    D: '#d64545',
+    E: '#8e5cc7'
+  };
+
+  /* groupedBar 的系列是数据集（spec5 / live5 / …），使用协调色 */
+  var DATASET_COLORS = ['#2f6fed', '#f28c28', '#2e9e5b', '#d64545', '#8e5cc7', '#7a6ff0'];
+
+  var AXIS_COLOR = '#64776c';
+  var TEXT_COLOR = '#3c4f44';
+  var GRID_LINE = '#eef4ef';
 
   var D = {};
 
@@ -18,12 +31,7 @@
     pendingTarget: 0,
     directories: [],
     activeIndex: -1,
-    charts: [],
-    lightbox: {
-      images: [],
-      index: 0,
-      trigger: null
-    }
+    charts: []
   };
 
   document.addEventListener('DOMContentLoaded', initGallery);
@@ -49,14 +57,6 @@
     D.tabs = document.getElementById('galleryTabs');
     D.panel = document.getElementById('galleryPanel');
     D.refresh = document.getElementById('galleryRefresh');
-
-    D.lightbox = document.getElementById('lightbox');
-    D.lightboxImage = document.getElementById('lightboxImage');
-    D.lightboxCaption = document.getElementById('lightboxCaption');
-    D.lightboxDownload = document.getElementById('lightboxDownload');
-    D.lightboxClose = document.getElementById('lightboxClose');
-    D.lightboxPrev = document.getElementById('lightboxPrev');
-    D.lightboxNext = document.getElementById('lightboxNext');
   }
 
   /* ============================================================
@@ -94,7 +94,11 @@
         D.refresh.disabled = false;
       }
 
-      state.directories = Array.isArray(data.directories) ? data.directories : [];
+      var directories = Array.isArray(data.directories) ? data.directories.slice() : [];
+      directories.sort(function (a, b) {
+        return compareNames(a && a.name, b && b.name);
+      });
+      state.directories = directories;
       state.loaded = true;
 
       if (!state.directories.length) {
@@ -121,7 +125,7 @@
 
       if (!found) {
         state.directories.forEach(function (dir, index) {
-          if (!found && visibleFiles(dir).length) {
+          if (!found && drawableCharts(dir).length) {
             target = index;
             found = true;
           }
@@ -151,22 +155,6 @@
         ensureLoaded(true);
       });
     }
-
-    if (D.lightboxClose) {
-      D.lightboxClose.addEventListener('click', closeLightbox);
-      D.lightboxPrev.addEventListener('click', function () {
-        stepLightbox(-1);
-      });
-      D.lightboxNext.addEventListener('click', function () {
-        stepLightbox(1);
-      });
-      D.lightbox.addEventListener('click', function (event) {
-        if (event.target === D.lightbox) {
-          closeLightbox();
-        }
-      });
-      document.addEventListener('keydown', handleLightboxKeys);
-    }
   }
 
   function showStatus(text, isError) {
@@ -185,7 +173,7 @@
   }
 
   /* ============================================================
-     目录 Tab
+     目录 Tab（数量 = 图表数）
      ============================================================ */
 
   function renderTabs() {
@@ -203,21 +191,23 @@
     var buttons = [];
 
     state.directories.forEach(function (dir, index) {
-      var files = visibleFiles(dir);
       var button = document.createElement('button');
       button.type = 'button';
       button.className = 'gallery-tab';
       button.id = 'gallery-tab-' + index;
       button.setAttribute('role', 'tab');
       button.setAttribute('aria-selected', index === state.activeIndex ? 'true' : 'false');
+      button.setAttribute('aria-controls', D.panel && D.panel.id ? D.panel.id : 'galleryPanel');
       button.tabIndex = index === state.activeIndex ? 0 : -1;
       button.setAttribute('data-index', String(index));
 
       var label = document.createElement('span');
       label.textContent = dir.name || '(未命名目录)';
+      var countValue = drawableCharts(dir).length;
       var count = document.createElement('span');
       count.className = 'gallery-tab-count';
-      count.textContent = String(files.length);
+      count.textContent = String(countValue);
+      count.setAttribute('aria-label', countValue + ' 张图表');
 
       button.appendChild(label);
       button.appendChild(count);
@@ -285,7 +275,7 @@
   }
 
   /* ============================================================
-     目录内容
+     目录内容：只渲染图表卡片
      ============================================================ */
 
   function renderDirectory(dir) {
@@ -294,46 +284,39 @@
     }
     D.panel.textContent = '';
 
-    var files = visibleFiles(dir).slice();
-    files.sort(function (a, b) {
-      return compareNames(a.name, b.name);
-    });
-
-    if (!files.length) {
-      showEmptyPanel('「' + dir.name + '」暂无数据');
+    var charts = drawableCharts(dir);
+    if (!charts.length) {
+      showEmptyPanel('「' + (dir && dir.name ? dir.name : '') + '」暂无可绘制图表');
       return;
     }
 
-    var csvFiles = [];
-    var imageFiles = [];
-    var docFiles = [];
+    var grid = document.createElement('div');
+    grid.className = 'chart-grid';
 
-    files.forEach(function (file) {
-      var kind = fileKind(file);
-      if (kind === 'csv') {
-        csvFiles.push(file);
-      } else if (kind === 'image') {
-        imageFiles.push(file);
-      } else if (kind === 'doc') {
-        docFiles.push(file);
-      }
+    var entries = charts.map(function (spec) {
+      var card = document.createElement('section');
+      card.className = 'chart-card';
+
+      var title = document.createElement('h4');
+      title.textContent = spec.title || '未命名图表';
+
+      var element = document.createElement('div');
+      element.className = 'chart';
+      element.setAttribute('role', 'img');
+      element.setAttribute('aria-label', spec.title || '图表');
+
+      card.appendChild(title);
+      card.appendChild(element);
+      grid.appendChild(card);
+
+      return { element: element, spec: spec };
     });
 
-    csvFiles.forEach(function (file) {
-      renderCsv(dir, file);
+    D.panel.appendChild(grid);
+
+    entries.forEach(function (entry) {
+      initChart(entry.element, entry.spec);
     });
-
-    if (imageFiles.length) {
-      renderImageSection(dir, imageFiles);
-    }
-
-    if (docFiles.length) {
-      renderDocSection(dir, docFiles);
-    }
-
-    if (!csvFiles.length && !imageFiles.length && !docFiles.length) {
-      showEmptyPanel('「' + dir.name + '」暂无可展示的文件');
-    }
   }
 
   function showEmptyPanel(text) {
@@ -347,724 +330,284 @@
     D.panel.appendChild(box);
   }
 
+  function chartList(dir) {
+    return dir && Array.isArray(dir.charts) ? dir.charts : [];
+  }
+
+  function drawableCharts(dir) {
+    return chartList(dir).filter(isDrawableChart);
+  }
+
+  function isDrawableChart(spec) {
+    return Boolean(
+      spec &&
+      typeof spec === 'object' &&
+      Array.isArray(spec.x) &&
+      spec.x.length &&
+      Array.isArray(spec.series) &&
+      spec.series.length
+    );
+  }
+
   /* ============================================================
-     CSV
+     ECharts 通用渲染器
      ============================================================ */
 
-  function renderCsv(dir, file) {
-    var parseFailed = Boolean(file.error) ||
-      (String(file.type || '').toLowerCase() === 'file' && fileExt(file.name) === 'csv');
-
-    var card = document.createElement('section');
-    card.className = 'csv-card';
-
-    var title = document.createElement('h4');
-    title.textContent = file.name;
-    var meta = document.createElement('span');
-    meta.className = 'csv-meta';
-    meta.textContent = parseFailed
-      ? '解析失败'
-      : '预览 ' + (Array.isArray(file.rows) ? file.rows.length : 0) +
-        ' 行 / 共 ' + (Number(file.n_rows) || 0) + ' 行';
-    title.appendChild(meta);
-    card.appendChild(title);
-
-    if (parseFailed) {
-      var errorText = document.createElement('p');
-      errorText.className = 'table-note is-error';
-      var reason = file.error || '后端未能解析该文件';
-      errorText.textContent = reason.indexOf('CSV 解析失败') === 0
-        ? reason
-        : 'CSV 解析失败：' + reason;
-
-      var download = document.createElement('a');
-      download.className = 'btn btn-small csv-download';
-      download.href = fileUrl(dir, file);
-      download.setAttribute('download', file.name);
-      download.textContent = '下载原始 CSV';
-
-      card.appendChild(errorText);
-      card.appendChild(download);
-      D.panel.appendChild(card);
-      return;
-    }
-
-    var csv = normalizeCsv(file);
-    var kind = csvKind(csv.columns);
-
-    if (!csv.rows.length) {
-      var empty = document.createElement('p');
-      empty.className = 'table-note';
-      empty.textContent = 'CSV 暂无数据';
-      card.appendChild(empty);
-      D.panel.appendChild(card);
-      return;
-    }
-
-    D.panel.appendChild(card);
-
-    if (kind === 'metrics') {
-      renderMetricsCharts(card, csv);
-    } else if (kind === 'ablation') {
-      renderAblationCharts(card, csv);
-    } else {
-      renderTable(card, csv);
-    }
-  }
-
-  function normalizeCsv(file) {
-    var columns = Array.isArray(file.columns) ? file.columns.map(function (column) {
-      return String(column).replace(/^\uFEFF/, '').trim();
-    }) : [];
-    var rows = Array.isArray(file.rows) ? file.rows : [];
-
-    if (!columns.length && rows.length) {
-      var first = rowObject(rows[0], []);
-      columns = Object.keys(first);
-    }
-
-    var total = Number(file.n_rows);
-    if (!isFinite(total) || total < rows.length) {
-      total = rows.length;
-    }
-
-    return {
-      columns: columns,
-      rows: rows,
-      nRows: total
-    };
-  }
-
-  function rowObject(row, columns) {
-    if (Array.isArray(row)) {
-      var mapped = {};
-      columns.forEach(function (column, index) {
-        mapped[column] = row[index];
-      });
-      return mapped;
-    }
-    return row && typeof row === 'object' ? row : {};
-  }
-
-  function rowLookup(row, columns) {
-    var source = rowObject(row, columns);
-    var normalized = {};
-    Object.keys(source).forEach(function (key) {
-      normalized[String(key).replace(/^\uFEFF/, '').trim().toLowerCase()] = source[key];
-    });
-    return normalized;
-  }
-
-  function csvKind(columns) {
-    var lower = columns.map(function (column) {
-      return String(column).trim().toLowerCase();
-    });
-    var has = function (name) {
-      return lower.indexOf(name) !== -1;
-    };
-
-    if (has('dataset') && has('model') && has('accuracy') && has('ce_loss')) {
-      return 'ablation';
-    }
-    if (has('model') && has('accuracy') && has('ce_loss')) {
-      return 'metrics';
-    }
-    return 'table';
-  }
-
-  function renderMetricsCharts(card, csv) {
-    var labels = [];
-    var accuracy = [];
-    var loss = [];
-
-    csv.rows.forEach(function (row, index) {
-      var item = rowLookup(row, csv.columns);
-      labels.push(item.model === undefined || item.model === '' ? '#' + (index + 1) : String(item.model));
-      accuracy.push(toNumber(item.accuracy));
-      loss.push(toNumber(item.ce_loss));
-    });
-
-    var grid = document.createElement('div');
-    grid.className = 'chart-grid';
-
-    var accuracyChart = createChartCard('测试准确率 accuracy');
-    var lossChart = createChartCard('测试交叉熵 ce_loss');
-    grid.appendChild(accuracyChart.card);
-    grid.appendChild(lossChart.card);
-    card.appendChild(grid);
-
-    initChart(accuracyChart.chart, barOption(labels, accuracy, {
-      unit: 'percent',
-      color: '#3d8b5c',
-      max: 1
-    }));
-    initChart(lossChart.chart, barOption(labels, loss, {
-      unit: 'number',
-      color: '#b7a34a'
-    }));
-  }
-
-  function renderAblationCharts(card, csv) {
-    var datasets = [];
-    var models = [];
-    var lookup = {};
-
-    csv.rows.forEach(function (row) {
-      var item = rowLookup(row, csv.columns);
-      var dataset = item.dataset === undefined ? '' : String(item.dataset);
-      var model = item.model === undefined ? '' : String(item.model);
-      if (!dataset || !model) {
-        return;
-      }
-      if (datasets.indexOf(dataset) === -1) {
-        datasets.push(dataset);
-      }
-      if (models.indexOf(model) === -1) {
-        models.push(model);
-      }
-      lookup[dataset + '||' + model] = item;
-    });
-
-    if (!datasets.length || !models.length) {
-      var empty = document.createElement('p');
-      empty.className = 'table-note';
-      empty.textContent = 'CSV 缺少 dataset / model 列，无法绘制分组柱状图';
-      card.appendChild(empty);
-      return;
-    }
-
-    var grid = document.createElement('div');
-    grid.className = 'chart-grid';
-
-    var accuracyChart = createChartCard('各数据集准确率 accuracy');
-    var lossChart = createChartCard('各数据集交叉熵 ce_loss');
-    grid.appendChild(accuracyChart.card);
-    grid.appendChild(lossChart.card);
-    card.appendChild(grid);
-
-    initChart(accuracyChart.chart, groupedBarOption(datasets, models, lookup, {
-      metric: 'accuracy',
-      unit: 'percent',
-      max: 1
-    }));
-    initChart(lossChart.chart, groupedBarOption(datasets, models, lookup, {
-      metric: 'ce_loss',
-      unit: 'number'
-    }));
-  }
-
-  function createChartCard(titleText) {
-    var card = document.createElement('div');
-    card.className = 'chart-card';
-
-    var title = document.createElement('h4');
-    title.textContent = titleText;
-
-    var chart = document.createElement('div');
-    chart.className = 'chart';
-
-    card.appendChild(title);
-    card.appendChild(chart);
-
-    return { card: card, chart: chart };
-  }
-
-  function initChart(chartElement, option) {
+  function initChart(element, spec) {
     if (!window.echarts) {
-      chartElement.className = 'chart-empty';
-      chartElement.textContent = 'ECharts 未加载';
+      element.className = 'chart chart-empty';
+      element.textContent = 'ECharts 未加载';
       return;
     }
     try {
-      var chart = window.echarts.init(chartElement, null, { renderer: 'canvas' });
-      chart.setOption(option);
+      var chart = window.echarts.init(element, null, { renderer: 'canvas' });
+      chart.setOption(buildOption(spec));
       state.charts.push(chart);
     } catch (err) {
-      chartElement.className = 'chart-empty';
-      chartElement.textContent = '图表渲染失败：' + err.message;
+      element.className = 'chart chart-empty';
+      element.textContent = '图表渲染失败：' + err.message;
     }
   }
 
-  function baseOption() {
+  function buildOption(spec) {
+    var type = spec.type === 'bar' || spec.type === 'groupedBar' ? spec.type : 'line';
+    var unit = spec.unit === 'percent' ? 'percent' : 'value';
+    var isLine = type === 'line';
+    var isGrouped = type === 'groupedBar';
+
+    var seriesNames = spec.series.map(function (item) {
+      return String(item.name || item.key || '');
+    });
+    var colors = spec.series.map(function (item, index) {
+      return seriesColor(item, index, isGrouped);
+    });
+
     return {
+      color: colors,
       textStyle: {
         fontFamily: '"Microsoft YaHei", "PingFang SC", sans-serif',
-        color: '#3c4f44'
+        color: TEXT_COLOR
       },
-      animationDuration: 420
+      animationDuration: 420,
+      grid: {
+        left: 56,
+        right: 20,
+        top: 56,
+        bottom: 44,
+        containLabel: true
+      },
+      legend: {
+        top: 0,
+        right: 8,
+        type: 'scroll',
+        itemWidth: 12,
+        itemHeight: 8,
+        itemGap: 12,
+        textStyle: { color: TEXT_COLOR, fontSize: 10 },
+        data: seriesNames
+      },
+      tooltip: buildTooltip(type, unit, spec),
+      xAxis: {
+        type: 'category',
+        data: spec.x,
+        boundaryGap: !isLine,
+        axisTick: { alignWithLabel: true },
+        axisLine: { lineStyle: { color: '#c3d8c9' } },
+        axisLabel: {
+          color: AXIS_COLOR,
+          interval: 0,
+          rotate: 0,
+          fontSize: 10,
+          formatter: categoryFormatter(isLine, spec.x.length)
+        }
+      },
+      yAxis: buildYAxis(unit),
+      series: spec.series.map(function (item, index) {
+        return buildSeries(item, type, unit, spec, colors[index]);
+      })
     };
   }
 
-  function barOption(labels, values, config) {
-    var option = baseOption();
-    option.color = [config.color || PALETTE[0]];
-    option.grid = { left: 48, right: 22, top: 34, bottom: labels.length > 4 ? 52 : 40 };
-    option.tooltip = {
+  function buildTooltip(type, unit, spec) {
+    var tooltip = {
       trigger: 'axis',
-      axisPointer: { type: 'shadow' },
-      valueFormatter: function (value) {
-        return formatMetric(value, config.unit);
-      }
+      confine: true,
+      axisPointer: { type: type === 'line' ? 'line' : 'shadow' }
     };
-    option.xAxis = {
-      type: 'category',
-      data: labels,
-      axisTick: { alignWithLabel: true },
-      axisLine: { lineStyle: { color: '#c3d8c9' } },
-      axisLabel: {
-        color: '#64776c',
-        interval: 0,
-        rotate: labels.some(function (label) { return String(label).length > 8; }) ? 18 : 0
-      }
-    };
-    option.yAxis = {
+
+    /* 单指标柱状图：每个系列只有自身分类有值，过滤掉 null，避免悬停时满屏“—” */
+    if (type === 'bar') {
+      tooltip.formatter = function (params) {
+        var rows = (Array.isArray(params) ? params : [params]).filter(function (item) {
+          return item && item.value !== null && item.value !== undefined && item.value !== '';
+        });
+        var title = rows.length ? rows[0].axisValueLabel : '';
+        var body = rows.map(function (item) {
+          return '<div style="display:flex;align-items:center;gap:6px;">' +
+            item.marker +
+            '<span>' + escapeHtml(item.seriesName) + '</span>' +
+            '<b style="margin-left:auto;">' +
+            escapeHtml(formatTooltipValue(item.value, unit, spec)) +
+            '</b></div>';
+        }).join('');
+        return '<div style="font-size:12px;line-height:1.7;min-width:140px;">' +
+          '<div style="font-weight:600;margin-bottom:3px;">' + escapeHtml(title) + '</div>' +
+          body + '</div>';
+      };
+    } else {
+      tooltip.valueFormatter = function (value) {
+        return formatTooltipValue(value, unit, spec);
+      };
+    }
+
+    return tooltip;
+  }
+
+  function escapeHtml(value) {
+    return String(value === null || value === undefined ? '' : value)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
+  function buildYAxis(unit) {
+    var axis = {
       type: 'value',
-      min: 0,
-      max: config.max,
       axisLine: { show: false },
       axisTick: { show: false },
-      axisLabel: {
-        color: '#64776c',
-        formatter: config.unit === 'percent'
-          ? function (value) { return Math.round(value * 100) + '%'; }
-          : undefined
-      },
-      splitLine: { lineStyle: { color: '#eef4ef' } }
+      axisLabel: { color: AXIS_COLOR, fontSize: 10 },
+      splitLine: { lineStyle: { color: GRID_LINE } }
     };
-    option.series = [{
-      name: config.unit === 'percent' ? 'accuracy' : 'ce_loss',
+
+    if (unit === 'percent') {
+      axis.min = 0;
+      axis.max = 1;
+      axis.axisLabel.formatter = function (value) {
+        return Math.round(value * 100) + '%';
+      };
+    }
+
+    return axis;
+  }
+
+  function buildSeries(item, type, unit, spec, color) {
+    var name = String(item.name || item.key || '');
+    var data = Array.isArray(item.data) ? item.data : [];
+
+    if (type === 'line') {
+      return {
+        name: name,
+        type: 'line',
+        data: data,
+        smooth: false,
+        showSymbol: false,
+        symbol: 'none',
+        connectNulls: false,
+        lineStyle: { width: 2, color: color },
+        itemStyle: { color: color },
+        label: { show: false },
+        emphasis: { focus: 'series' }
+      };
+    }
+
+    var grouped = type === 'groupedBar';
+    return {
+      name: name,
       type: 'bar',
-      data: values,
-      barMaxWidth: 44,
+      data: data,
+      barMaxWidth: grouped ? 26 : 44,
+      barGap: grouped ? '10%' : '-100%',
       itemStyle: {
-        borderRadius: [6, 6, 0, 0],
-        color: config.color || PALETTE[0]
+        color: color,
+        borderRadius: grouped ? [4, 4, 0, 0] : [6, 6, 0, 0]
       },
       label: {
-        show: true,
+        show: spec.showDataLabels === true,
         position: 'top',
-        color: '#2f6b45',
+        color: TEXT_COLOR,
         fontSize: 10,
         formatter: function (params) {
-          return formatMetric(params.value, config.unit);
-        }
-      }
-    }];
-
-    return option;
-  }
-
-  function groupedBarOption(datasets, models, lookup, config) {
-    var option = baseOption();
-    option.color = PALETTE;
-    option.grid = { left: 48, right: 24, top: 52, bottom: 54 };
-    option.legend = {
-      top: 2,
-      type: 'scroll',
-      textStyle: { color: '#3c4f44', fontSize: 11 }
-    };
-    option.tooltip = {
-      trigger: 'axis',
-      axisPointer: { type: 'shadow' },
-      valueFormatter: function (value) {
-        return formatMetric(value, config.unit);
-      }
-    };
-    option.xAxis = {
-      type: 'category',
-      data: datasets,
-      axisTick: { alignWithLabel: true },
-      axisLine: { lineStyle: { color: '#c3d8c9' } },
-      axisLabel: {
-        color: '#64776c',
-        interval: 0,
-        rotate: datasets.some(function (label) { return String(label).length > 8; }) ? 16 : 0
-      }
-    };
-    option.yAxis = {
-      type: 'value',
-      min: 0,
-      max: config.max,
-      axisLine: { show: false },
-      axisTick: { show: false },
-      axisLabel: {
-        color: '#64776c',
-        formatter: config.unit === 'percent'
-          ? function (value) { return Math.round(value * 100) + '%'; }
-          : undefined
-      },
-      splitLine: { lineStyle: { color: '#eef4ef' } }
-    };
-
-    option.series = models.map(function (model) {
-      var values = datasets.map(function (dataset) {
-        var row = lookup[dataset + '||' + model];
-        return row ? toNumber(row[config.metric]) : null;
-      });
-      return {
-        name: model,
-        type: 'bar',
-        data: values,
-        barMaxWidth: 26,
-        itemStyle: { borderRadius: [4, 4, 0, 0] },
-        label: {
-          show: models.length <= 4,
-          position: 'top',
-          fontSize: 9,
-          color: '#3c4f44',
-          formatter: function (params) {
-            return formatMetric(params.value, config.unit);
+          if (params.value === null || params.value === undefined) {
+            return '';
           }
+          var number = Number(params.value);
+          if (!isFinite(number)) {
+            return '';
+          }
+          return unit === 'percent'
+            ? (number * 100).toFixed(1) + '%'
+            : number.toFixed(3);
         }
-      };
-    });
-
-    return option;
+      }
+    };
   }
 
-  function renderTable(card, csv) {
-    var wrapper = document.createElement('div');
-    wrapper.className = 'table-wrap';
-
-    var table = document.createElement('table');
-    table.className = 'data-table';
-
-    var thead = document.createElement('thead');
-    var headRow = document.createElement('tr');
-    csv.columns.forEach(function (column) {
-      var th = document.createElement('th');
-      th.scope = 'col';
-      th.textContent = column;
-      headRow.appendChild(th);
-    });
-    thead.appendChild(headRow);
-    table.appendChild(thead);
-
-    var tbody = document.createElement('tbody');
-    var preview = csv.rows.slice(0, MAX_TABLE_ROWS);
-    preview.forEach(function (row) {
-      var item = rowObject(row, csv.columns);
-      var tr = document.createElement('tr');
-      csv.columns.forEach(function (column) {
-        var td = document.createElement('td');
-        var value = item[column];
-        td.textContent = value === undefined || value === null ? '' : String(value);
-        tr.appendChild(td);
-      });
-      tbody.appendChild(tr);
-    });
-    table.appendChild(tbody);
-    wrapper.appendChild(table);
-    card.appendChild(wrapper);
-
-    var note = document.createElement('p');
-    note.className = 'table-note';
-    note.textContent = '表格预览前 ' + preview.length + ' 行，共 ' + csv.nRows + ' 行';
-    card.appendChild(note);
+  function seriesColor(item, index, grouped) {
+    if (grouped) {
+      return DATASET_COLORS[index % DATASET_COLORS.length];
+    }
+    var key = String(item.key || '').toUpperCase();
+    return MODEL_COLORS[key] || DATASET_COLORS[index % DATASET_COLORS.length];
   }
 
-  function toNumber(value) {
+  function formatTooltipValue(value, unit, spec) {
     if (value === null || value === undefined || value === '') {
-      return null;
+      return '—';
     }
     var number = Number(value);
-    return isFinite(number) ? number : null;
-  }
-
-  function formatMetric(value, unit) {
-    var number = toNumber(value);
-    if (number === null) {
+    if (!isFinite(number)) {
       return '—';
     }
     if (unit === 'percent') {
-      return (number * 100).toFixed(1) + '%';
+      return (number * 100).toFixed(2) + '%';
+    }
+    if (spec && /gain/i.test(String(spec.id || ''))) {
+      return number.toFixed(2) + ' 百分点';
     }
     return number.toFixed(3);
   }
 
-  /* ============================================================
-     图片与文档
-     ============================================================ */
-
-  function renderImageSection(dir, images) {
-    var section = document.createElement('section');
-    section.className = 'gallery-section';
-
-    var head = document.createElement('div');
-    head.className = 'gallery-section-head';
-    var title = document.createElement('h3');
-    title.textContent = '图片';
-    var count = document.createElement('span');
-    count.textContent = images.length + ' 张 · 点击查看大图';
-    head.appendChild(title);
-    head.appendChild(count);
-    section.appendChild(head);
-
-    var grid = document.createElement('div');
-    grid.className = 'image-grid';
-
-    var entries = images.map(function (file) {
-      return {
-        name: file.name,
-        url: fileUrl(dir, file),
-        dir: dir.name
-      };
-    });
-
-    images.forEach(function (file, index) {
-      var button = document.createElement('button');
-      button.type = 'button';
-      button.className = 'thumb';
-      button.title = file.name;
-
-      var img = document.createElement('img');
-      img.src = fileUrl(dir, file);
-      img.alt = file.name;
-      img.loading = 'lazy';
-      img.decoding = 'async';
-
-      var caption = document.createElement('span');
-      caption.className = 'thumb-caption';
-      var name = document.createElement('strong');
-      name.textContent = file.name;
-      var meta = document.createElement('small');
-      meta.textContent = formatBytes(file.size) + (file.mtime ? ' · ' + formatDate(file.mtime) : '');
-      caption.appendChild(name);
-      caption.appendChild(meta);
-
-      button.appendChild(img);
-      button.appendChild(caption);
-      button.addEventListener('click', function () {
-        openLightbox(entries, index, button);
-      });
-
-      grid.appendChild(button);
-    });
-
-    section.appendChild(grid);
-    D.panel.appendChild(section);
+  /*
+   * 横坐标标签：柱状图始终显示全部分类；折线图轮次较多，
+   * 用 formatter 只显示首末与每 5 轮的标签，避免文字重叠。
+   * 只影响显示，interval 仍为 0，数据本身不变。
+   */
+  function categoryFormatter(isLine, count) {
+    if (!isLine) {
+      return formatCategoryLabel;
+    }
+    return function (value, index) {
+      if (index === 0 || index % 5 === 0) {
+        return String(value);
+      }
+      /* 末尾轮次与前一个标签太近时不再单独显示，避免重叠 */
+      if (index === count - 1 && (count - 1) % 5 >= 2) {
+        return String(value);
+      }
+      return '';
+    };
   }
 
-  function renderDocSection(dir, docs) {
-    var section = document.createElement('section');
-    section.className = 'gallery-section';
-
-    var head = document.createElement('div');
-    head.className = 'gallery-section-head';
-    var title = document.createElement('h3');
-    title.textContent = '文档下载';
-    var count = document.createElement('span');
-    count.textContent = docs.length + ' 个文件';
-    head.appendChild(title);
-    head.appendChild(count);
-    section.appendChild(head);
-
-    var list = document.createElement('div');
-    list.className = 'doc-list';
-
-    docs.forEach(function (file) {
-      var link = document.createElement('a');
-      link.className = 'doc-link';
-      link.href = fileUrl(dir, file);
-      link.setAttribute('download', file.name);
-
-      var icon = document.createElement('span');
-      icon.className = 'doc-icon';
-      icon.setAttribute('aria-hidden', 'true');
-      icon.textContent = fileExt(file.name).toUpperCase();
-
-      var meta = document.createElement('span');
-      meta.className = 'doc-meta';
-      var name = document.createElement('strong');
-      name.textContent = file.name;
-      var info = document.createElement('small');
-      info.textContent = formatBytes(file.size) + (file.mtime ? ' · ' + formatDate(file.mtime) : '');
-      meta.appendChild(name);
-      meta.appendChild(info);
-
-      link.appendChild(icon);
-      link.appendChild(meta);
-      list.appendChild(link);
-    });
-
-    section.appendChild(list);
-    D.panel.appendChild(section);
-  }
-
-  /* ============================================================
-     灯箱
-     ============================================================ */
-
-  function openLightbox(images, index, trigger) {
-    state.lightbox.images = images;
-    state.lightbox.index = index;
-    state.lightbox.trigger = trigger || null;
-
-    renderLightbox();
-    D.lightbox.hidden = false;
-    document.body.classList.add('is-locked');
-
-    window.setTimeout(function () {
-      D.lightboxClose.focus();
-    }, 0);
-  }
-
-  function renderLightbox() {
-    var images = state.lightbox.images;
-    if (!images.length) {
-      return;
+  function formatCategoryLabel(value) {
+    var text = String(value === null || value === undefined ? '' : value);
+    /* 只对超长标签换行，不修改数据本身 */
+    if (text.length > 12 && text.indexOf(' (') > 0) {
+      return text.replace(' (', '\n(');
     }
-    var index = state.lightbox.index;
-    var item = images[index];
-
-    D.lightboxImage.src = item.url;
-    D.lightboxImage.alt = item.dir + ' / ' + item.name;
-    D.lightboxCaption.textContent = item.dir + ' / ' + item.name;
-    D.lightboxDownload.href = item.url;
-    D.lightboxDownload.setAttribute('download', item.name);
-
-    var single = images.length <= 1;
-    D.lightboxPrev.disabled = single;
-    D.lightboxNext.disabled = single;
-  }
-
-  function stepLightbox(delta) {
-    var images = state.lightbox.images;
-    if (images.length <= 1) {
-      return;
-    }
-    state.lightbox.index = (state.lightbox.index + delta + images.length) % images.length;
-    renderLightbox();
-  }
-
-  function closeLightbox() {
-    if (!D.lightbox || D.lightbox.hidden) {
-      return;
-    }
-    D.lightbox.hidden = true;
-    D.lightboxImage.removeAttribute('src');
-    document.body.classList.remove('is-locked');
-
-    if (state.lightbox.trigger && typeof state.lightbox.trigger.focus === 'function') {
-      state.lightbox.trigger.focus();
-    }
-    state.lightbox.trigger = null;
-  }
-
-  function handleLightboxKeys(event) {
-    if (!D.lightbox || D.lightbox.hidden) {
-      return;
-    }
-    if (event.key === 'Escape') {
-      event.preventDefault();
-      closeLightbox();
-    } else if (event.key === 'ArrowLeft') {
-      event.preventDefault();
-      stepLightbox(-1);
-    } else if (event.key === 'ArrowRight') {
-      event.preventDefault();
-      stepLightbox(1);
-    } else if (event.key === 'Tab') {
-      trapLightboxFocus(event);
-    }
-  }
-
-  function trapLightboxFocus(event) {
-    var focusable = D.lightbox.querySelectorAll('button:not([disabled]), [href]');
-    if (!focusable.length) {
-      return;
-    }
-    var first = focusable[0];
-    var last = focusable[focusable.length - 1];
-
-    if (event.shiftKey && document.activeElement === first) {
-      event.preventDefault();
-      last.focus();
-    } else if (!event.shiftKey && document.activeElement === last) {
-      event.preventDefault();
-      first.focus();
-    }
+    return text;
   }
 
   /* ============================================================
      工具
      ============================================================ */
 
-  function visibleFiles(dir) {
-    var files = Array.isArray(dir.files) ? dir.files : [];
-    return files.filter(function (file) {
-      if (!file || !file.name) {
-        return false;
-      }
-      var name = String(file.name);
-      return name.indexOf('~$') !== 0 && name.charAt(0) !== '.';
-    });
-  }
-
-  function fileKind(file) {
-    var type = String(file.type || '').toLowerCase();
-    var ext = fileExt(file.name);
-
-    if (type === 'csv' || ext === 'csv') {
-      return 'csv';
-    }
-    if (type === 'image' || type === 'png' || type === 'jpg' || type === 'jpeg' ||
-        ext === 'png' || ext === 'jpg' || ext === 'jpeg') {
-      return 'image';
-    }
-    if (type === 'docx' || type === 'pdf' || ext === 'docx' || ext === 'pdf') {
-      return 'doc';
-    }
-    return 'other';
-  }
-
-  function fileExt(name) {
-    var text = String(name || '');
-    var dot = text.lastIndexOf('.');
-    return dot === -1 ? '' : text.slice(dot + 1).toLowerCase();
-  }
-
-  function fileUrl(dir, file) {
-    if (file.url) {
-      return file.url;
-    }
-    return '/pic/' + encodeURIComponent(dir.name) + '/' + encodeURIComponent(file.name);
-  }
-
   function compareNames(a, b) {
     return String(a).localeCompare(String(b), 'zh-CN', {
       numeric: true,
       sensitivity: 'base'
     });
-  }
-
-  function formatBytes(bytes) {
-    var size = Number(bytes);
-    if (!isFinite(size) || size <= 0) {
-      return '0 B';
-    }
-    if (size < 1024) {
-      return size + ' B';
-    }
-    if (size < 1024 * 1024) {
-      return (size / 1024).toFixed(1) + ' KB';
-    }
-    return (size / (1024 * 1024)).toFixed(1) + ' MB';
-  }
-
-  function formatDate(value) {
-    if (value === null || value === undefined || value === '') {
-      return '';
-    }
-    var date = new Date(value);
-    if (isNaN(date.getTime())) {
-      return String(value);
-    }
-    return date.getFullYear() + '-' + pad2(date.getMonth() + 1) + '-' + pad2(date.getDate());
-  }
-
-  function pad2(value) {
-    return value < 10 ? '0' + value : String(value);
   }
 
   function disposeCharts() {

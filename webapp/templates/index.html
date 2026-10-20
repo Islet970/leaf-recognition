@@ -3,8 +3,9 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="校园叶片识别与可解释性可视化系统：摄像头实时识别、上传识别、实验数据看板。">
-  <title>校园叶片识别与可解释性可视化系统</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20viewBox%3D%270%200%2032%2032%27%3E%3Cpath%20d%3D%27M27%205C17%205%209%209%206%2017c-1.4%203.7-1.2%207.2-.2%209.3%202.1%201%205.6%201.2%209.3-.2C23%2023%2027%2015%2027%205Z%27%20fill%3D%27%232f6b45%27%2F%3E%3Cpath%20d%3D%27M6.5%2025.5C11%2019%2016%2014.5%2023%2011%27%20fill%3D%27none%27%20stroke%3D%27%23f4faf5%27%20stroke-width%3D%271.8%27%20stroke-linecap%3D%27round%27%2F%3E%3C%2Fsvg%3E">
+  <meta name="description" content="知叶 · 面向农学生的叶片识别与学习平台：帮助农学生认识校园植物叶片，支持摄像头实时识别、上传识别与实验数据看板。">
+  <title>知叶 · 农学生叶片识别与学习平台</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body>
@@ -20,8 +21,8 @@
           </svg>
         </span>
         <span class="brand-text">
-          <strong>叶知</strong>
-          <small>校园叶片识别与可解释性可视化系统</small>
+          <strong>知叶</strong>
+          <small>面向农学生的叶片识别与学习平台</small>
         </span>
       </a>
 
@@ -45,8 +46,8 @@
       <div class="section-head">
         <div>
           <p class="eyebrow">Leaf Recognition</p>
-          <h1 id="recognizeTitle">校园叶片识别与可解释性可视化系统</h1>
-          <p class="section-desc">打开摄像头或上传图片，选择模型即可查看 Top-k 识别结果、置信度与 Grad-CAM 关注区域。</p>
+          <h1 id="recognizeTitle">知叶 · 叶片识别与学习平台</h1>
+          <p class="section-desc">帮助农学生认识校园植物叶片：打开摄像头或上传图片，选择模型即可查看识别结果与 Grad-CAM 关注区域。</p>
         </div>
         <span class="engine-badge" id="engineBadge" role="status">正在加载模型…</span>
       </div>
@@ -136,7 +137,7 @@
             </span>
             <span class="switch-text">
               <strong>叠加 Grad-CAM</strong>
-              <small>显示模型关注的叶片区域（后端可能不支持）</small>
+              <small>显示模型关注的叶片区域</small>
             </span>
           </label>
 
@@ -152,7 +153,7 @@
                 <span class="result-label">识别为</span>
                 <strong id="resultZh">—</strong>
                 <em id="resultSci"></em>
-                <span id="resultModelTag" class="result-model-tag"></span>
+                <span id="resultModelTag" class="result-model-tag" role="status" aria-live="polite"></span>
               </div>
               <div class="result-latency">
                 <span>推理耗时</span>
@@ -169,7 +170,7 @@
             <figure id="gradcamPanel" class="gradcam-panel" hidden>
               <figcaption>Grad-CAM 关注区域</figcaption>
               <img id="gradcamImage" alt="Grad-CAM 热力图" hidden>
-              <p id="gradcamUnavailable" class="gradcam-unavailable" hidden>Grad-CAM 暂不可用</p>
+              <p id="gradcamUnavailable" class="gradcam-unavailable" role="status" aria-live="polite" hidden>Grad-CAM 暂不可用</p>
             </figure>
           </div>
 
@@ -192,7 +193,6 @@
         <div>
           <p class="eyebrow">Experiment Gallery</p>
           <h1 id="galleryTitle">数据看板</h1>
-          <p class="section-desc">按 <code>pic/</code> 子目录浏览训练图表、指标 CSV、报告文档与实验截图。</p>
         </div>
         <button id="galleryRefresh" class="btn" type="button">刷新数据</button>
       </div>
@@ -246,7 +246,7 @@
 
   <footer class="site-footer">
     <div class="container footer-inner">
-      <span>校园叶片识别与可解释性可视化系统 · 离线演示版</span>
+      <span>知叶 · 面向农学生的叶片识别与学习平台 · 离线演示版</span>
       <span>Flavia 叶片数据集 · CPU 推理</span>
     </div>
   </footer>
@@ -270,21 +270,6 @@
         <button id="modalConfirm" class="btn btn-primary" type="button">确认</button>
       </div>
     </div>
-  </div>
-
-  <!-- 图片灯箱 -->
-  <div id="lightbox" class="lightbox" hidden role="dialog" aria-modal="true" aria-label="图片预览">
-    <div class="lightbox-toolbar">
-      <span id="lightboxCaption" class="lightbox-caption"></span>
-      <div class="lightbox-actions">
-        <button id="lightboxPrev" class="btn btn-small" type="button" aria-label="上一张">上一张</button>
-        <button id="lightboxNext" class="btn btn-small" type="button" aria-label="下一张">下一张</button>
-        <a id="lightboxDownload" class="btn btn-small" href="#" download>下载原图</a>
-        <button id="lightboxClose" class="btn btn-small" type="button">关闭</button>
-      </div>
-    </div>
-    <img id="lightboxImage" class="lightbox-image" alt="">
-    <p id="lightboxHint" class="lightbox-hint">按 Esc 关闭，← / → 切换图片</p>
   </div>
 
   <script src="{{ url_for('static', filename='vendor/echarts.min.js') }}"></script>
