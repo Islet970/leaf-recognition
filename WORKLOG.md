@@ -479,3 +479,15 @@
   - `tools/build_live_dataset.py` 中 hard 仅出现在“跳过/不使用”的注释与逻辑中
 - 提交: `fix(eval): 取消困难帧测试并清理 hard 产物`
 - 遗留问题 / 下一步: 报告与网页；后续所有评测只用普通 `_test` 432 张
+
+---
+
+## [2026-10-20 10:05] 补充 E2 普通测试指标 CSV
+
+- 执行代理: 主代理
+- 目标: 与 `plans.md` §15.4 的 E2 输出清单保持一致（只保留普通测试，无 hard）
+- 改动: 新增 `pic/live-train-test/metrics_test.csv`
+- 命令与结果: 从 `runs/live5/*/test_metrics.json` 聚合 4 行 → A 69.23% / B 86.54% / C 73.08% / D 75.00%，n=52
+- 验证结论: 通过（4 行，列名为 `model,accuracy,macro_f1,ce_loss,n`）
+- 提交: `fix(eval): 补充 E2 普通测试指标 CSV`
+- 遗留问题 / 下一步: 报告与网页
