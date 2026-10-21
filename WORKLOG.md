@@ -662,3 +662,21 @@
 - 提交: `feat(webapp): 完成知叶网页二轮改造与交互式看板`
 - 说明: 未配置 remote，未推送；`.claude/` 为本地配置未提交；摄像头实测使用假摄像头流，真实摄像头截图仍需人工补拍
 - 遗留问题 / 下一步: 真实摄像头实拍截图（webcam_01–04）；报告 4.5 素材整理
+
+---
+
+## [2026-10-21 08:22] T8.10 推送至 GitHub
+
+- 执行代理: 主代理
+- 目标: 按用户要求将项目推送到 GitHub
+- 仓库: `https://github.com/Islet970/leaf-recognition`（Public，默认分支 `master`）
+- 操作:
+  - `gh repo create leaf-recognition --public --source=. --remote=origin --push`
+  - 推送提交 `ed3728f feat(webapp): 完成知叶网页二轮改造与交互式看板`
+- 推送前检查:
+  - 跟踪文件 97 个，仓库体积约 9.29 MiB
+  - `git ls-files` 中无 `runs/`、`data/Leaves/`、`data/leaf/`、`data/cache/`、`*.pt`、`*.pth`、`.claude/`
+  - `git grep` 未发现 token/密钥模式
+- 验证结论: 通过；`origin/master` 指向 `ed3728f`，`gh repo view` 显示 PUBLIC
+- 说明: `.claude/` 为本地配置，保持未跟踪、未推送
+- 遗留问题 / 下一步: 无
