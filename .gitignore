@@ -22,3 +22,10 @@ venv/
 ~$*
 Thumbs.db
 .DS_Store
+
+# 仅保留在本地、不推送的项目文档
+AGENTS.md
+CLAUDE.md
+WORKLOG.md
+plans.md
+《神经网络与深度学习（英语）》项目报告书模板2026.doc
